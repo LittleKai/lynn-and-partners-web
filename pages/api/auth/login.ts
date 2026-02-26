@@ -91,7 +91,7 @@ export default async function login(req: NextApiRequest, res: NextApiResponse) {
     cookies.set("session_id", token, {
       httpOnly: true,
       secure: isSecure,
-      sameSite: "none",
+      sameSite: "lax",
       maxAge: cookieMaxAge,
     });
 
