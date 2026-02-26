@@ -1,0 +1,116 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  username    String    @unique
+  name        String
+  password    String
+  role        String    @default("user") // "superadmin" | "admin" | "user"
+  createdById String?   @db.ObjectId
+  createdAt   DateTime  @db.Date
+  updatedAt   DateTime? @db.Date
+}
+
+// "Địa điểm" — có thể là kho hàng, văn phòng, cửa hàng, v.v.
+model Location {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  type        String   @default("warehouse") // "hotel" | "apartment" | "warehouse" | "office" | "store" | "other"
+  currency    String   @default("VND") // "VND" | "USD" | "EUR"
+  description String?
+  address     String?
+  adminId     String   @db.ObjectId
+  createdAt   DateTime @db.Date
+}
+
+model UserLocationAccess {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  locationId  String   @db.ObjectId
+  permissions String[] // ["IMPORT_STOCK","EXPORT_STOCK","MANAGE_PRODUCTS","MANAGE_CATEGORIES","MANAGE_SUPPLIERS","MANAGE_EXPENSES","VIEW_REPORTS"]
+}
+
+model Category {
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  locationId String @db.ObjectId
+  name       String
+}
+
+model Product {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId  String   @db.ObjectId
+  categoryId  String   @db.ObjectId
+  supplierId  String?  @db.ObjectId
+  name        String
+  sku         String
+  price       Float
+  quantity    BigInt
+  status      String
+  imageUrl    String?
+  createdById String   @db.ObjectId
+  createdAt   DateTime @db.Date
+}
+
+model Supplier {
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  locationId String @db.ObjectId
+  name       String
+
+  // Contact
+  contactName String?
+  phone       String?
+  email       String?
+
+  // Address
+  address String?
+  city    String?
+  country String?
+
+  // Business
+  taxId                      String?
+  businessRegistrationNumber String?
+  companyName                String?
+
+  // Notes / Contract
+  notes        String?
+  paymentTerms String?
+  contractDate DateTime? @db.Date
+}
+
+model InventoryTransaction {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId  String   @db.ObjectId
+  productId   String   @db.ObjectId
+  supplierId  String?  @db.ObjectId
+  type        String   // "IMPORT" | "EXPORT"
+  quantity    BigInt
+  unitPrice   Float?
+  totalPrice  Float?
+  notes       String?
+  imageUrls   String[]
+  fileUrls    String[]
+  createdById String   @db.ObjectId
+  createdAt   DateTime @db.Date
+}
+
+model Expense {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId  String   @db.ObjectId
+  type        String   // "RENT" | "UTILITIES" | "SALARY" | "MAINTENANCE" | "SUPPLIES" | "CLEANING" | "SECURITY" | "INSURANCE" | "REPAIR" | "OTHER"
+  amount      Float
+  currency    String   @default("VND") // "VND" | "USD" | "EUR"
+  description String?
+  notes       String?
+  imageUrls   String[]
+  fileUrls    String[]
+  createdById String   @db.ObjectId
+  createdAt   DateTime @db.Date
+}
