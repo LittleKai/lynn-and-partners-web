@@ -2,7 +2,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
-import Cookies from "js-cookie";
 import { NextApiRequest, NextApiResponse } from "next";
 
 const prisma = new PrismaClient();
@@ -96,14 +95,6 @@ export const getSessionServer = async (
 
 export const getSessionClient = async (): Promise<SessionUser | null> => {
   try {
-    const token = Cookies.get("session_id");
-    if (process.env.NODE_ENV === "development") {
-      console.log("Session ID from cookies:", token);
-    }
-    if (!token) {
-      return null;
-    }
-
     const response = await fetch("/api/auth/session", {
       method: "GET",
       headers: {
@@ -113,8 +104,7 @@ export const getSessionClient = async (): Promise<SessionUser | null> => {
     });
 
     if (response.ok) {
-      const user = await response.json();
-      return user;
+      return await response.json();
     }
 
     return null;

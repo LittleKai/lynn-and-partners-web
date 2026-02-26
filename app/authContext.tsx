@@ -47,30 +47,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const checkSession = async () => {
-      const sessionId = Cookies.get("session_id");
-      if (process.env.NODE_ENV === "development") {
-        console.log("Session ID from cookies:", sessionId);
-      }
-      if (sessionId) {
-        const session = await getSessionClient();
-        if (process.env.NODE_ENV === "development") {
-          console.log("Session from getSessionClient:", session);
-        }
-        if (session) {
-          setIsLoggedIn(true);
-          setUser({
-            id: session.id,
-            name: session.name,
-            username: session.username,
-            role: session.role as "superadmin" | "admin" | "user",
-          });
-          localStorage.setItem("isAuth", "true");
-          localStorage.setItem("isLoggedIn", "true");
-          localStorage.setItem("token", sessionId);
-          localStorage.setItem("getSession", JSON.stringify(session));
-        } else {
-          clearAuthData();
-        }
+      const session = await getSessionClient();
+      if (session) {
+        setIsLoggedIn(true);
+        setUser({
+          id: session.id,
+          name: session.name,
+          username: session.username,
+          role: session.role as "superadmin" | "admin" | "user",
+        });
+        localStorage.setItem("isAuth", "true");
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("getSession", JSON.stringify(session));
       } else {
         clearAuthData();
       }
@@ -96,10 +84,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         username: result.userUsername,
         role: result.userRole as "superadmin" | "admin" | "user",
       });
-      Cookies.set("session_id", result.sessionId);
       localStorage.setItem("isAuth", "true");
       localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("token", result.sessionId);
       localStorage.setItem("getSession", JSON.stringify(result));
     } catch (error) {
       console.error("Error logging in:", error);
