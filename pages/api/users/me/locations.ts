@@ -29,9 +29,8 @@ export default async function handler(
     }
 
     if (session.role === "admin") {
-      // Admin sees their own locations
+      // Admin sees all locations
       const locations = await prisma.location.findMany({
-        where: { adminId: session.id },
         orderBy: { createdAt: "desc" },
       });
       return res.status(200).json({ locations });

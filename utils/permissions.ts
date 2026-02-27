@@ -28,12 +28,7 @@ export async function hasLocationAccess(
 ): Promise<boolean> {
   if (session.role === "superadmin") return true;
 
-  if (session.role === "admin") {
-    const location = await prisma.location.findUnique({
-      where: { id: locationId },
-    });
-    return location?.adminId === session.id;
-  }
+  if (session.role === "admin") return true;
 
   // role === "user"
   const access = await prisma.userLocationAccess.findFirst({
