@@ -19,15 +19,18 @@ function isImage(filename: string): boolean {
 
 /**
  * Build Dropbox path:
- *   /{DROPBOX_FOLDER}/{locationName}/{YYYY}/{MM}/{DD}-{safeName}
+ *   default:  /{DROPBOX_FOLDER}/{locationName}/{YYYY}/{MM}/{DD}-{safeName}
+ *   subfolder: /{DROPBOX_FOLDER}/{locationName}/{subfolder}/{DD}-{safeName}
  *
  * Example:
  *   /lynn-partners/Kho Hà Nội/2026/02/27-hoa-don.pdf
+ *   /lynn-partners/Kho Hà Nội/documents/27-hop-dong.pdf
  */
 function buildDropboxPath(
   baseFolder: string,
   locationName: string,
-  originalName: string
+  originalName: string,
+  subfolder?: string
 ): string {
   const now = new Date();
   const year = String(now.getFullYear());
@@ -40,6 +43,11 @@ function buildDropboxPath(
   // Sanitize filename: keep alphanumeric, dot, dash, underscore
   const safeName = originalName.replace(/[^a-zA-Z0-9.\-_àáảãạăắặẳẵặâấầẩẫậđèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵÀÁẢÃẠĂẮẶẲẴẶÂẤẦẨẪẬĐÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ]/g, "_").substring(0, 80);
 
+  if (subfolder) {
+    const safeSubfolder = subfolder.replace(/[^a-zA-Z0-9_-]/g, "_");
+    return `${baseFolder}/${safeLocation}/${safeSubfolder}/${day}-${safeName}`;
+  }
+
   return `${baseFolder}/${safeLocation}/${year}/${month}/${day}-${safeName}`;
 }
 
@@ -47,11 +55,19 @@ function buildDropboxPath(
 async function uploadToCloudinary(
   filePath: string,
   originalName: string,
-  locationName: string
+  locationName: string,
+  subfolder?: string
 ): Promise<{ url: string; publicId: string; resourceType: string }> {
   const cloudinary = (await import("@/utils/cloudinary")).default;
   const imageUpload = isImage(originalName);
   const safeLocation = locationName.replace(/[^a-zA-Z0-9-_]/g, "_") || "general";
+  const safeSubfolder = subfolder
+    ? subfolder.replace(/[^a-zA-Z0-9_-]/g, "_")
+    : null;
+
+  const baseFolder = safeSubfolder
+    ? `lynn-partners/${safeLocation}/${safeSubfolder}`
+    : `lynn-partners/${safeLocation}`;
 
   let result;
   if (imageUpload) {
@@ -61,12 +77,12 @@ async function uploadToCloudinary(
         { width: 1200, crop: "limit" },
         { quality: "auto:good" },
       ],
-      folder: `lynn-partners/${safeLocation}`,
+      folder: baseFolder,
     });
   } else {
     result = await cloudinary.uploader.upload(filePath, {
       resource_type: "raw",
-      folder: `lynn-partners/${safeLocation}/docs`,
+      folder: safeSubfolder ? baseFolder : `${baseFolder}/docs`,
       use_filename: true,
       unique_filename: true,
     });
@@ -83,7 +99,8 @@ async function uploadToCloudinary(
 async function uploadToDropbox(
   filePath: string,
   originalName: string,
-  locationName: string
+  locationName: string,
+  subfolder?: string
 ): Promise<{ url: string; publicId: string; resourceType: string }> {
   const { getDropboxClient, toDirectUrl, DROPBOX_FOLDER } = await import(
     "@/utils/dropbox"
@@ -108,7 +125,7 @@ async function uploadToDropbox(
     fileBuffer = fs.readFileSync(filePath);
   }
 
-  const dropboxPath = buildDropboxPath(DROPBOX_FOLDER, locationName, originalName);
+  const dropboxPath = buildDropboxPath(DROPBOX_FOLDER, locationName, originalName, subfolder);
 
   // Upload to Dropbox
   await dbx.filesUpload({
@@ -178,14 +195,17 @@ export default async function handler(
     const locationName =
       (fields as Fields).locationName?.[0] || "general";
 
+    // optional subfolder (e.g. "documents") for organised storage
+    const subfolder = (fields as Fields).subfolder?.[0] || undefined;
+
     const provider = process.env.UPLOAD_PROVIDER || "cloudinary";
 
     let result: { url: string; publicId: string; resourceType: string };
 
     if (provider === "dropbox") {
-      result = await uploadToDropbox(file.filepath, originalName, locationName);
+      result = await uploadToDropbox(file.filepath, originalName, locationName, subfolder);
     } else {
-      result = await uploadToCloudinary(file.filepath, originalName, locationName);
+      result = await uploadToCloudinary(file.filepath, originalName, locationName, subfolder);
     }
 
     return res.status(200).json(result);

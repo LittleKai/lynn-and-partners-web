@@ -161,3 +161,14 @@ model Expense {
   createdById String   @db.ObjectId
   createdAt   DateTime @db.Date
 }
+
+model LocationDocument {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId     String   @db.ObjectId
+  name           String
+  url            String
+  resourceType   String   @default("raw") // "image" | "raw"
+  uploadedById   String   @db.ObjectId
+  uploadedByName String?
+  uploadedAt     DateTime @default(now()) @db.Date
+}

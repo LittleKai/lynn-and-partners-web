@@ -7,6 +7,13 @@ import axiosInstance from "@/utils/axiosInstance";
 import { formatWithDots, parseDots } from "@/utils/formatNumber";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AttachmentSlots } from "@/components/ui/attachment-slots";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import AppHeader from "@/app/AppHeader/AppHeader";
@@ -38,7 +45,8 @@ export default function NewExpensePage() {
     description: "",
     notes: "",
   });
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<(File | null)[]>(Array(5).fill(null));
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -59,7 +67,7 @@ export default function NewExpensePage() {
   const uploadFiles = async (locName: string): Promise<{ imageUrls: string[]; fileUrls: string[] }> => {
     const imageUrls: string[] = [];
     const fileUrls: string[] = [];
-    for (const file of files) {
+    for (const file of files.filter((f): f is File => f !== null)) {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("locationName", locName);
@@ -193,14 +201,14 @@ export default function NewExpensePage() {
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-1 block">
+            <label className="text-sm font-medium mb-2 block">
               {t("attachments")}
             </label>
-            <Input
-              type="file"
-              multiple
+            <AttachmentSlots
+              files={files}
+              onChange={setFiles}
+              onPreview={setPreviewUrl}
               accept="image/*,.pdf,.doc,.docx"
-              onChange={(e) => setFiles(Array.from(e.target.files || []))}
             />
           </div>
 
@@ -209,6 +217,23 @@ export default function NewExpensePage() {
           </Button>
         </form>
       </main>
+
+      {/* Image Preview Dialog */}
+      {previewUrl && (
+        <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{t("previewImage")}</DialogTitle>
+            </DialogHeader>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt="preview"
+              className="w-full rounded-lg object-contain max-h-[70vh]"
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

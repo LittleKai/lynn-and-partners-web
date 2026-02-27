@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FloatLabelInput } from "@/components/ui/float-label-input";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import {
@@ -175,8 +176,8 @@ export default function LocationsPage() {
     setForm: React.Dispatch<React.SetStateAction<typeof emptyForm>>;
   }) => (
     <div className="space-y-3 py-2">
-      <Input
-        placeholder={`${t("locationName")} *`}
+      <FloatLabelInput
+        label={`${t("locationName")} *`}
         value={form.name}
         onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
         autoFocus
@@ -211,13 +212,13 @@ export default function LocationsPage() {
           </SelectContent>
         </Select>
       </div>
-      <Input
-        placeholder={t("description")}
+      <FloatLabelInput
+        label={t("description")}
         value={form.description}
         onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
       />
-      <Input
-        placeholder={t("address")}
+      <FloatLabelInput
+        label={t("address")}
         value={form.address}
         onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
       />

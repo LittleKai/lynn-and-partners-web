@@ -8,6 +8,7 @@ import axiosInstance from "@/utils/axiosInstance";
 import { formatWithDots, parseDots } from "@/utils/formatNumber";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AttachmentSlots } from "@/components/ui/attachment-slots";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import AppHeader from "@/app/AppHeader/AppHeader";
@@ -65,7 +66,7 @@ export default function ImportPage() {
   ]);
   const [supplierId, setSupplierId] = useState("none");
   const [notes, setNotes] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<(File | null)[]>(Array(5).fill(null));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Product picker dialog
@@ -239,7 +240,7 @@ export default function ImportPage() {
   ): Promise<{ imageUrls: string[]; fileUrls: string[] }> => {
     const imageUrls: string[] = [];
     const fileUrls: string[] = [];
-    for (const file of files) {
+    for (const file of files.filter((f): f is File => f !== null)) {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("locationName", locName);
@@ -536,56 +537,14 @@ export default function ImportPage() {
 
           {/* Attachments */}
           <div>
-            <label className="text-sm font-medium mb-1 block">
-              {t("attachments")} ({t("imagesAndFiles")}){" "}
-              <span className="text-muted-foreground font-normal text-xs">
-                — {t("maxFiles")}
-              </span>
+            <label className="text-sm font-medium mb-2 block">
+              {t("attachments")}
             </label>
-            <Input
-              type="file"
-              multiple
-              accept="image/*,.pdf,.doc,.docx,.xlsx"
-              onChange={(e) => {
-                const selected = Array.from(e.target.files || []);
-                if (selected.length > 5) {
-                  toast({ title: t("maxFilesExceeded"), variant: "destructive" });
-                  e.target.value = "";
-                  return;
-                }
-                setFiles(selected);
-              }}
+            <AttachmentSlots
+              files={files}
+              onChange={setFiles}
+              onPreview={setPreviewUrl}
             />
-            {files.length > 0 && (
-              <div className="mt-2 space-y-1">
-                {files.map((file, i) => {
-                  const isImage = file.type.startsWith("image/");
-                  return (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between text-xs text-muted-foreground"
-                    >
-                      <span className="truncate max-w-[70%]">
-                        {isImage ? "🖼️" : "📄"} {file.name}
-                      </span>
-                      {isImage && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-xs"
-                          onClick={() =>
-                            setPreviewUrl(URL.createObjectURL(file))
-                          }
-                        >
-                          {t("previewImage")}
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           <Button type="submit" className="w-full" disabled={isSubmitting}>

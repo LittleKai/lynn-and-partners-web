@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FloatLabelInput } from "@/components/ui/float-label-input";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import {
@@ -208,23 +209,24 @@ export default function UsersPage() {
             <DialogTitle>{t("createUser")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <Input
-              placeholder={t("username")}
+            <FloatLabelInput
+              label={t("username")}
               value={createForm.username}
               onChange={(e) =>
                 setCreateForm((f) => ({ ...f, username: e.target.value }))
               }
+              autoFocus
             />
-            <Input
-              placeholder={t("name")}
+            <FloatLabelInput
+              label={t("name")}
               value={createForm.name}
               onChange={(e) =>
                 setCreateForm((f) => ({ ...f, name: e.target.value }))
               }
             />
-            <Input
+            <FloatLabelInput
               type="password"
-              placeholder={t("password")}
+              label={t("password")}
               value={createForm.password}
               onChange={(e) =>
                 setCreateForm((f) => ({ ...f, password: e.target.value }))

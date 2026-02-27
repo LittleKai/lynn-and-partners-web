@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/app/authContext";
 import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
+import { formatWithDots, parseDots } from "@/utils/formatNumber";
+import { AttachmentSlots } from "@/components/ui/attachment-slots";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AppHeader from "@/app/AppHeader/AppHeader";
 import Loading from "@/components/Loading";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FloatLabelInput } from "@/components/ui/float-label-input";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -25,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Package, ShoppingCart, Wallet, Users, ChevronLeft } from "lucide-react";
+import { Package, ShoppingCart, Wallet, Users, ChevronLeft, FolderOpen } from "lucide-react";
 
 interface Location {
   id: string;
@@ -100,6 +103,22 @@ interface NewOrderRow {
   productId: string;
   quantity: string;
   salePrice: string;
+}
+
+interface ImportItem {
+  uid: string;
+  productId: string;
+  quantity: string;
+  unitPrice: string;
+}
+
+interface LocationDoc {
+  id: string;
+  name: string;
+  url: string;
+  resourceType: string;
+  uploadedByName: string | null;
+  uploadedAt: string;
 }
 
 interface Transaction {
@@ -187,38 +206,38 @@ function CustomerList({
         <div key={c.id} className="px-4 py-3 border-b last:border-b-0 hover:bg-muted/40">
           {editingCustomer?.id === c.id ? (
             <div className="space-y-2">
-              <Input
+              <FloatLabelInput
+                inputSize="sm"
+                label={`${t("customerName")} *`}
                 value={editingCustomerData.name}
                 onChange={(e) => setEditingCustomerData((f) => ({ ...f, name: e.target.value }))}
-                placeholder={`${t("customerName")} *`}
-                className="h-8 text-sm"
                 autoFocus
               />
               <div className="grid grid-cols-2 gap-2">
-                <Input
+                <FloatLabelInput
+                  inputSize="sm"
+                  label={t("phone")}
                   value={editingCustomerData.phone}
                   onChange={(e) => setEditingCustomerData((f) => ({ ...f, phone: e.target.value }))}
-                  placeholder={t("phone")}
-                  className="h-8 text-sm"
                 />
-                <Input
+                <FloatLabelInput
+                  inputSize="sm"
+                  label={t("email")}
                   value={editingCustomerData.email}
                   onChange={(e) => setEditingCustomerData((f) => ({ ...f, email: e.target.value }))}
-                  placeholder={t("email")}
-                  className="h-8 text-sm"
                 />
               </div>
-              <Input
+              <FloatLabelInput
+                inputSize="sm"
+                label={t("supplierCompany")}
                 value={editingCustomerData.address}
                 onChange={(e) => setEditingCustomerData((f) => ({ ...f, address: e.target.value }))}
-                placeholder={t("supplierCompany")}
-                className="h-8 text-sm"
               />
-              <Input
+              <FloatLabelInput
+                inputSize="sm"
+                label={t("notes")}
                 value={editingCustomerData.notes}
                 onChange={(e) => setEditingCustomerData((f) => ({ ...f, notes: e.target.value }))}
-                placeholder={t("notes")}
-                className="h-8 text-sm"
               />
               <div className="flex gap-2 justify-end">
                 <Button size="sm" variant="ghost" onClick={() => setEditingCustomer(null)}>✕</Button>
@@ -363,6 +382,47 @@ export default function LocationInventoryPage() {
   const [orderCustomerFilter, setOrderCustomerFilter] = useState("ALL");
   const [orderSort, setOrderSort] = useState("date_desc");
 
+  // ── Import Stock dialog ────────────────────────────────────────────
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importItems, setImportItems] = useState<ImportItem[]>([
+    { uid: "1", productId: "", quantity: "", unitPrice: "" },
+  ]);
+  const [importSupplierId, setImportSupplierId] = useState("none");
+  const [importNotes, setImportNotes] = useState("");
+  const [importFiles, setImportFiles] = useState<(File | null)[]>(Array(5).fill(null));
+  const [isImportSubmitting, setIsImportSubmitting] = useState(false);
+  const [importPickerOpen, setImportPickerOpen] = useState(false);
+  const [importPickerItemUid, setImportPickerItemUid] = useState("");
+  const [importProductSearch, setImportProductSearch] = useState("");
+  const [importPickerView, setImportPickerView] = useState<"search" | "add">("search");
+  const [importNewProductName, setImportNewProductName] = useState("");
+  const [importNewProductSku, setImportNewProductSku] = useState("");
+  const [importNewProductUnit, setImportNewProductUnit] = useState("");
+  const [isCreatingImportProduct, setIsCreatingImportProduct] = useState(false);
+  const [importSupplierOpen, setImportSupplierOpen] = useState(false);
+  const [importNewSupplier, setImportNewSupplier] = useState({ name: "", address: "", phone: "", email: "" });
+  const [isCreatingImportSupplier, setIsCreatingImportSupplier] = useState(false);
+  const [importPreviewUrl, setImportPreviewUrl] = useState<string | null>(null);
+
+  // ── Add Expense dialog ─────────────────────────────────────────────
+  const [showExpenseDialog, setShowExpenseDialog] = useState(false);
+  const [expenseForm, setExpenseForm] = useState({
+    type: "OTHER",
+    amount: "",
+    currency: "VND",
+    description: "",
+    notes: "",
+  });
+  const [expenseFiles, setExpenseFiles] = useState<(File | null)[]>(Array(5).fill(null));
+  const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
+  const [expensePreviewUrl, setExpensePreviewUrl] = useState<string | null>(null);
+
+  // ── Documents tab (admin only) ─────────────────────────────────────
+  const [documents, setDocuments] = useState<LocationDoc[]>([]);
+  const [isDocUploading, setIsDocUploading] = useState(false);
+  const [docPreviewUrl, setDocPreviewUrl] = useState<string | null>(null);
+  const docFileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (isInitializing) return;
     if (!isLoggedIn) {
@@ -374,7 +434,7 @@ export default function LocationInventoryPage() {
 
   const loadData = async () => {
     try {
-      const [locRes, productsRes, txRes, expRes, catRes, supRes, meLocRes, custRes, guestRes, ordersRes] =
+      const [locRes, productsRes, txRes, expRes, catRes, supRes, meLocRes, custRes, guestRes, ordersRes, docsRes] =
         await Promise.allSettled([
           axiosInstance.get(`/admin/locations/${locationId}`),
           axiosInstance.get(`/locations/${locationId}/products`),
@@ -386,6 +446,7 @@ export default function LocationInventoryPage() {
           axiosInstance.get(`/locations/${locationId}/customers`),
           axiosInstance.get(`/locations/${locationId}/guests`),
           axiosInstance.get(`/locations/${locationId}/orders`),
+          axiosInstance.get(`/locations/${locationId}/documents`),
         ]);
 
       if (locRes.status === "fulfilled") setLocation(locRes.value.data.location);
@@ -405,6 +466,8 @@ export default function LocationInventoryPage() {
         setGuests(guestRes.value.data.guests);
       if (ordersRes.status === "fulfilled")
         setOrders(ordersRes.value.data.orders);
+      if (docsRes.status === "fulfilled")
+        setDocuments(docsRes.value.data.documents);
       if (meLocRes.status === "fulfilled") {
         const loc = meLocRes.value.data.locations?.find(
           (l: { id: string; permissions?: string[] }) => l.id === locationId
@@ -1017,6 +1080,292 @@ export default function LocationInventoryPage() {
     }
   };
 
+  // ── Import Stock dialog helpers ───────────────────────────────────
+  const importHasNegativeQty = importItems.some(
+    (i) => i.quantity && Number(parseDots(i.quantity)) < 0
+  );
+
+  const importGrandTotal = useMemo(() => {
+    return importItems.reduce((sum, item) => {
+      if (!item.productId || !item.quantity || !item.unitPrice) return sum;
+      const qty = Number(parseDots(item.quantity));
+      const price = Number(parseDots(item.unitPrice));
+      if (isNaN(qty) || isNaN(price)) return sum;
+      return sum + qty * price;
+    }, 0);
+  }, [importItems]);
+
+  const importFilteredProducts = useMemo(() => {
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(importProductSearch.toLowerCase()) ||
+        p.sku.toLowerCase().includes(importProductSearch.toLowerCase())
+    );
+  }, [products, importProductSearch]);
+
+  const openImportDialog = () => {
+    setImportItems([{ uid: "1", productId: "", quantity: "", unitPrice: "" }]);
+    setImportSupplierId("none");
+    setImportNotes("");
+    setImportFiles(Array(5).fill(null));
+    setImportPickerOpen(false);
+    setImportProductSearch("");
+    setImportPickerView("search");
+    setShowImportDialog(true);
+  };
+
+  const importGetProduct = (id: string) => products.find((p) => p.id === id);
+
+  const importAddItem = () =>
+    setImportItems((prev) => [
+      ...prev,
+      { uid: Date.now().toString(), productId: "", quantity: "", unitPrice: "" },
+    ]);
+
+  const importRemoveItem = (uid: string) =>
+    setImportItems((prev) => prev.filter((i) => i.uid !== uid));
+
+  const importUpdateItem = (
+    uid: string,
+    field: keyof Omit<ImportItem, "uid">,
+    value: string
+  ) =>
+    setImportItems((prev) =>
+      prev.map((i) => (i.uid === uid ? { ...i, [field]: value } : i))
+    );
+
+  const importHandleQuantityChange = (uid: string, value: string) => {
+    const isNeg = value.startsWith("-");
+    const digits = value.replace(/^-/, "");
+    importUpdateItem(uid, "quantity", (isNeg ? "-" : "") + formatWithDots(digits));
+  };
+
+  const importOpenPicker = (uid: string) => {
+    setImportPickerItemUid(uid);
+    setImportProductSearch("");
+    setImportPickerView("search");
+    setImportNewProductName("");
+    setImportNewProductSku("");
+    setImportNewProductUnit("");
+    setImportPickerOpen(true);
+  };
+
+  const importSelectProduct = (product: Product) => {
+    importUpdateItem(importPickerItemUid, "productId", product.id);
+    setImportPickerOpen(false);
+  };
+
+  const importHandleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!importNewProductName.trim() || !importNewProductUnit.trim()) return;
+    setIsCreatingImportProduct(true);
+    try {
+      const res = await axiosInstance.post(`/locations/${locationId}/products`, {
+        name: importNewProductName.trim(),
+        sku: importNewProductSku.trim() || undefined,
+        unit: importNewProductUnit.trim(),
+      });
+      const created: Product = res.data.product;
+      setProducts((prev) => [created, ...prev]);
+      importSelectProduct(created);
+      toast({ title: t("createItemSuccess") });
+    } catch {
+      toast({ title: t("createItemFailed"), variant: "destructive" });
+    } finally {
+      setIsCreatingImportProduct(false);
+    }
+  };
+
+  const importHandleCreateSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!importNewSupplier.name.trim()) return;
+    setIsCreatingImportSupplier(true);
+    try {
+      const res = await axiosInstance.post(`/locations/${locationId}/suppliers`, {
+        name: importNewSupplier.name.trim(),
+        address: importNewSupplier.address.trim() || undefined,
+        phone: importNewSupplier.phone.trim() || undefined,
+        email: importNewSupplier.email.trim() || undefined,
+      });
+      const created: Supplier = res.data.supplier;
+      setSuppliers((prev) => [...prev, created]);
+      setImportSupplierId(created.id);
+      setImportSupplierOpen(false);
+      setImportNewSupplier({ name: "", address: "", phone: "", email: "" });
+      toast({ title: t("supplierAdded") });
+    } catch {
+      toast({ title: t("importFailed"), variant: "destructive" });
+    } finally {
+      setIsCreatingImportSupplier(false);
+    }
+  };
+
+  const handleImportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const validItems = importItems.filter(
+      (i) => i.productId && i.quantity && i.unitPrice
+    );
+    if (validItems.length === 0) return;
+    if (importHasNegativeQty && !importNotes.trim()) {
+      toast({ title: t("negativeQtyNoteRequired"), variant: "destructive" });
+      return;
+    }
+    setIsImportSubmitting(true);
+    try {
+      const locName = location?.name || "general";
+      const imageUrls: string[] = [];
+      const fileUrls: string[] = [];
+      for (const file of importFiles.filter((f): f is File => f !== null)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("locationName", locName);
+        try {
+          const r = await axiosInstance.post("/upload", fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          if (r.data.resourceType === "image") imageUrls.push(r.data.url);
+          else fileUrls.push(r.data.url);
+        } catch { /* continue */ }
+      }
+      await Promise.all(
+        validItems.map((item) => {
+          const qty = Number(parseDots(item.quantity));
+          const unitPrice = Number(parseDots(item.unitPrice));
+          return axiosInstance.post(`/locations/${locationId}/transactions`, {
+            productId: item.productId,
+            type: "IMPORT",
+            quantity: qty,
+            unitPrice,
+            totalPrice: unitPrice * qty,
+            supplierId: importSupplierId !== "none" ? importSupplierId : undefined,
+            notes: importNotes || undefined,
+            imageUrls,
+            fileUrls,
+          });
+        })
+      );
+      toast({ title: t("importSuccess") });
+      setShowImportDialog(false);
+      const [prodRes, txRes] = await Promise.allSettled([
+        axiosInstance.get(`/locations/${locationId}/products`),
+        axiosInstance.get(`/locations/${locationId}/transactions`),
+      ]);
+      if (prodRes.status === "fulfilled") setProducts(prodRes.value.data.products);
+      if (txRes.status === "fulfilled") setTransactions(txRes.value.data.transactions);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      toast({
+        title: t("importFailed"),
+        description: error.response?.data?.error,
+        variant: "destructive",
+      });
+    } finally {
+      setIsImportSubmitting(false);
+    }
+  };
+
+  // ── Add Expense dialog helpers ─────────────────────────────────────
+  const openExpenseDialog = () => {
+    setExpenseForm({
+      type: "OTHER",
+      amount: "",
+      currency: location?.currency || "VND",
+      description: "",
+      notes: "",
+    });
+    setExpenseFiles(Array(5).fill(null));
+    setExpensePreviewUrl(null);
+    setShowExpenseDialog(true);
+  };
+
+  const handleExpenseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!expenseForm.amount) return;
+    setIsExpenseSubmitting(true);
+    try {
+      const locName = location?.name || "general";
+      const imageUrls: string[] = [];
+      const fileUrls: string[] = [];
+      for (const file of expenseFiles.filter((f): f is File => f !== null)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("locationName", locName);
+        try {
+          const r = await axiosInstance.post("/upload", fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          if (r.data.resourceType === "image") imageUrls.push(r.data.url);
+          else fileUrls.push(r.data.url);
+        } catch { /* continue */ }
+      }
+      await axiosInstance.post(`/locations/${locationId}/expenses`, {
+        type: expenseForm.type,
+        amount: Number(parseDots(expenseForm.amount)),
+        currency: expenseForm.currency,
+        description: expenseForm.description || undefined,
+        notes: expenseForm.notes || undefined,
+        imageUrls,
+        fileUrls,
+      });
+      toast({ title: t("expenseAdded") });
+      setShowExpenseDialog(false);
+      const expRes = await axiosInstance
+        .get(`/locations/${locationId}/expenses`)
+        .catch(() => null);
+      if (expRes) setExpenses(expRes.data.expenses);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      toast({
+        title: t("expenseFailed"),
+        description: error.response?.data?.error,
+        variant: "destructive",
+      });
+    } finally {
+      setIsExpenseSubmitting(false);
+    }
+  };
+
+  // ── Documents handlers (admin only) ───────────────────────────────
+  const handleDocUpload = async (file: File) => {
+    if (!file) return;
+    setIsDocUploading(true);
+    try {
+      const locName = location?.name || "general";
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("locationName", locName);
+      fd.append("subfolder", "documents");
+      const r = await axiosInstance.post("/upload", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      await axiosInstance.post(`/locations/${locationId}/documents`, {
+        name: file.name,
+        url: r.data.url,
+        resourceType: r.data.resourceType || "raw",
+      });
+      toast({ title: t("documentUploaded") });
+      const docsRes = await axiosInstance
+        .get(`/locations/${locationId}/documents`)
+        .catch(() => null);
+      if (docsRes) setDocuments(docsRes.data.documents);
+    } catch {
+      toast({ title: t("documentUploadFailed"), variant: "destructive" });
+    } finally {
+      setIsDocUploading(false);
+    }
+  };
+
+  const handleDocDelete = async (docId: string) => {
+    if (!confirm(t("confirmDelete"))) return;
+    try {
+      await axiosInstance.delete(`/locations/${locationId}/documents/${docId}`);
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+      toast({ title: t("documentDeleted") });
+    } catch {
+      toast({ title: t("documentDeleteFailed"), variant: "destructive" });
+    }
+  };
+
   const handleExportOrdersCSV = () => {
     const rows = [
       ["Date", "Customer", "Items", "Total", "Notes"],
@@ -1073,7 +1422,7 @@ export default function LocationInventoryPage() {
 
         <Tabs defaultValue="items">
           {/* ── Main tabs ── */}
-          <TabsList className="grid w-full grid-cols-4 h-auto p-1 gap-1">
+          <TabsList className={`grid w-full h-auto p-1 gap-1 ${isAdmin ? "grid-cols-5" : "grid-cols-4"}`}>
             <TabsTrigger
               value="items"
               className="flex flex-col sm:flex-row items-center gap-1.5 py-2.5 data-[state=active]:shadow-sm"
@@ -1122,6 +1471,20 @@ export default function LocationInventoryPage() {
                 {customers.length}
               </span>
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger
+                value="documents"
+                className="flex flex-col sm:flex-row items-center gap-1.5 py-2.5 data-[state=active]:shadow-sm"
+              >
+                <FolderOpen className="h-4 w-4 shrink-0" />
+                <span className="text-xs sm:text-sm font-medium">
+                  {t("documents")}
+                </span>
+                <span className="text-xs bg-muted-foreground/10 rounded px-1.5 py-0.5 leading-none">
+                  {documents.length}
+                </span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* ── Items Tab ── */}
@@ -1140,9 +1503,9 @@ export default function LocationInventoryPage() {
               <Button onClick={() => setShowCreateProduct(true)}>
                 + {t("newItem")}
               </Button>
-              <Link href={`/inventory/${locationId}/import`}>
-                <Button variant="outline">{t("importStock")}</Button>
-              </Link>
+              <Button variant="outline" onClick={openImportDialog}>
+                {t("importStock")}
+              </Button>
               {canManageProducts && (
                 <Button
                   variant="outline"
@@ -1222,7 +1585,7 @@ export default function LocationInventoryPage() {
                         {t("quantity")}
                       </th>
                       <th className="px-4 py-3 text-right font-medium">
-                        {t("price")}
+                        {t("price")} ({location?.currency || "VND"})
                       </th>
                       <th className="px-4 py-3 text-left font-medium">
                         {t("status")}
@@ -1325,31 +1688,31 @@ export default function LocationInventoryPage() {
                   </Button>
                 ) : (
                   <div className="rounded-xl border p-4 space-y-3">
-                    <Input
-                      placeholder={`${t("supplierName")} *`}
+                    <FloatLabelInput
+                      label={`${t("supplierName")} *`}
                       value={newSupplier.name}
                       onChange={(e) =>
                         setNewSupplier((f) => ({ ...f, name: e.target.value }))
                       }
                       autoFocus
                     />
-                    <Input
-                      placeholder={t("supplierCompany")}
+                    <FloatLabelInput
+                      label={t("supplierCompany")}
                       value={newSupplier.address}
                       onChange={(e) =>
                         setNewSupplier((f) => ({ ...f, address: e.target.value }))
                       }
                     />
                     <div className="grid grid-cols-2 gap-3">
-                      <Input
-                        placeholder={t("phone")}
+                      <FloatLabelInput
+                        label={t("phone")}
                         value={newSupplier.phone}
                         onChange={(e) =>
                           setNewSupplier((f) => ({ ...f, phone: e.target.value }))
                         }
                       />
-                      <Input
-                        placeholder={t("email")}
+                      <FloatLabelInput
+                        label={t("email")}
                         type="email"
                         value={newSupplier.email}
                         onChange={(e) =>
@@ -1357,8 +1720,8 @@ export default function LocationInventoryPage() {
                         }
                       />
                     </div>
-                    <Input
-                      placeholder={t("notes")}
+                    <FloatLabelInput
+                      label={t("notes")}
                       value={newSupplier.notes}
                       onChange={(e) =>
                         setNewSupplier((f) => ({ ...f, notes: e.target.value }))
@@ -1415,7 +1778,9 @@ export default function LocationInventoryPage() {
                       >
                         {editingSupplier?.id === s.id ? (
                           <div className="space-y-2">
-                            <Input
+                            <FloatLabelInput
+                              inputSize="sm"
+                              label={`${t("supplierName")} *`}
                               value={editingSupplierData.name}
                               onChange={(e) =>
                                 setEditingSupplierData((f) => ({
@@ -1423,11 +1788,11 @@ export default function LocationInventoryPage() {
                                   name: e.target.value,
                                 }))
                               }
-                              placeholder={`${t("supplierName")} *`}
-                              className="h-8 text-sm"
                               autoFocus
                             />
-                            <Input
+                            <FloatLabelInput
+                              inputSize="sm"
+                              label={t("supplierCompany")}
                               value={editingSupplierData.address}
                               onChange={(e) =>
                                 setEditingSupplierData((f) => ({
@@ -1435,11 +1800,11 @@ export default function LocationInventoryPage() {
                                   address: e.target.value,
                                 }))
                               }
-                              placeholder={t("supplierCompany")}
-                              className="h-8 text-sm"
                             />
                             <div className="grid grid-cols-2 gap-2">
-                              <Input
+                              <FloatLabelInput
+                                inputSize="sm"
+                                label={t("phone")}
                                 value={editingSupplierData.phone}
                                 onChange={(e) =>
                                   setEditingSupplierData((f) => ({
@@ -1447,10 +1812,11 @@ export default function LocationInventoryPage() {
                                     phone: e.target.value,
                                   }))
                                 }
-                                placeholder={t("phone")}
-                                className="h-8 text-sm"
                               />
-                              <Input
+                              <FloatLabelInput
+                                inputSize="sm"
+                                label={t("email")}
+                                type="email"
                                 value={editingSupplierData.email}
                                 onChange={(e) =>
                                   setEditingSupplierData((f) => ({
@@ -1458,12 +1824,11 @@ export default function LocationInventoryPage() {
                                     email: e.target.value,
                                   }))
                                 }
-                                placeholder={t("email")}
-                                type="email"
-                                className="h-8 text-sm"
                               />
                             </div>
-                            <Input
+                            <FloatLabelInput
+                              inputSize="sm"
+                              label={t("notes")}
                               value={editingSupplierData.notes}
                               onChange={(e) =>
                                 setEditingSupplierData((f) => ({
@@ -1471,8 +1836,6 @@ export default function LocationInventoryPage() {
                                   notes: e.target.value,
                                 }))
                               }
-                              placeholder={t("notes")}
-                              className="h-8 text-sm"
                             />
                             <div className="flex gap-2 justify-end">
                               <Button
@@ -1549,9 +1912,9 @@ export default function LocationInventoryPage() {
           {/* ── Expenses Tab ── */}
           <TabsContent value="expenses" className="mt-4 space-y-3">
             <div className="flex justify-end">
-              <Link href={`/inventory/${locationId}/expenses/new`}>
-                <Button size="sm">{t("addExpense")}</Button>
-              </Link>
+              <Button size="sm" onClick={openExpenseDialog}>
+                {t("addExpense")}
+              </Button>
             </div>
 
             {/* Filter bar */}
@@ -1810,11 +2173,12 @@ export default function LocationInventoryPage() {
                             {t("unit")}
                           </th>
                           <th className="px-4 py-3 text-right font-medium">
-                            {t("costPrice")}
+                            {t("costPrice")} ({location?.currency || "VND"})
                           </th>
                           <th className="px-4 py-3 text-right font-medium">
-                            {t("salePrice")}
+                            {t("salePrice")} ({location?.currency || "VND"})
                           </th>
+                          <th className="px-4 py-3 text-right font-medium"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1833,59 +2197,74 @@ export default function LocationInventoryPage() {
                             <td className="px-4 py-3 text-right font-mono">
                               {p.price.toLocaleString()}
                             </td>
-                            <td className="px-4 py-3 text-right">
-                              {editingSalePrice[p.id] !== undefined ? (
-                                <div className="flex items-center gap-1 justify-end">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    className="w-28 h-7 text-right text-sm"
-                                    value={editingSalePrice[p.id]}
-                                    onChange={(e) =>
-                                      setEditingSalePrice((prev) => ({
-                                        ...prev,
-                                        [p.id]: e.target.value,
-                                      }))
-                                    }
-                                    autoFocus
-                                  />
-                                  <Button
-                                    size="sm"
-                                    className="h-7 px-2"
-                                    disabled={savingPriceId === p.id}
-                                    onClick={() => handleSaveSalePrice(p.id)}
-                                  >
-                                    ✓
-                                  </Button>
+                            {editingSalePrice[p.id] !== undefined ? (
+                              <>
+                                <td className="px-4 py-3 text-right">
+                                  <div className="flex items-center gap-1 justify-end">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      className="w-28 h-7 text-right text-sm"
+                                      value={editingSalePrice[p.id]}
+                                      onChange={(e) =>
+                                        setEditingSalePrice((prev) => ({
+                                          ...prev,
+                                          [p.id]: e.target.value,
+                                        }))
+                                      }
+                                      autoFocus
+                                    />
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <div className="flex items-center gap-1 justify-end">
+                                    <Button
+                                      size="sm"
+                                      className="h-7 px-2"
+                                      disabled={savingPriceId === p.id}
+                                      onClick={() => handleSaveSalePrice(p.id)}
+                                    >
+                                      ✓
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 px-2"
+                                      onClick={() =>
+                                        setEditingSalePrice((prev) => {
+                                          const next = { ...prev };
+                                          delete next[p.id];
+                                          return next;
+                                        })
+                                      }
+                                    >
+                                      ✕
+                                    </Button>
+                                  </div>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="px-4 py-3 text-right font-mono">
+                                  {(p.salePrice ?? 0).toLocaleString()}
+                                </td>
+                                <td className="px-4 py-3 text-right">
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 px-2"
+                                    className="h-7 px-2 text-muted-foreground hover:text-foreground"
                                     onClick={() =>
-                                      setEditingSalePrice((prev) => {
-                                        const next = { ...prev };
-                                        delete next[p.id];
-                                        return next;
-                                      })
+                                      setEditingSalePrice((prev) => ({
+                                        ...prev,
+                                        [p.id]: String(p.salePrice ?? 0),
+                                      }))
                                     }
                                   >
-                                    ✕
+                                    ✏️
                                   </Button>
-                                </div>
-                              ) : (
-                                <button
-                                  className="font-mono hover:underline cursor-pointer"
-                                  onClick={() =>
-                                    setEditingSalePrice((prev) => ({
-                                      ...prev,
-                                      [p.id]: String(p.salePrice ?? 0),
-                                    }))
-                                  }
-                                >
-                                  {(p.salePrice ?? 0).toLocaleString()}
-                                </button>
-                              )}
-                            </td>
+                                </td>
+                              </>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -2038,6 +2417,88 @@ export default function LocationInventoryPage() {
               </div>
             )}
           </TabsContent>
+
+          {/* ── Documents Tab (admin only) ── */}
+          {isAdmin && (
+            <TabsContent value="documents" className="mt-4 space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-semibold">{t("documents")}</h2>
+                  <p className="text-sm text-muted-foreground">{t("documentsDesc")}</p>
+                </div>
+                <div>
+                  <input
+                    ref={docFileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx,.xlsx,.xls,.ppt,.pptx,.txt,.zip,.rar"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleDocUpload(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  <Button
+                    disabled={isDocUploading}
+                    onClick={() => docFileInputRef.current?.click()}
+                  >
+                    {isDocUploading ? t("uploading") : `+ ${t("uploadDocument")}`}
+                  </Button>
+                </div>
+              </div>
+
+              {documents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
+                  <FolderOpen className="h-10 w-10 opacity-30" />
+                  <p className="text-sm">{t("noDocuments")}</p>
+                </div>
+              ) : (
+                <div className="rounded-xl border overflow-hidden">
+                  {documents.map((doc) => {
+                    const isImage = doc.resourceType === "image";
+                    return (
+                      <div key={doc.id} className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0 hover:bg-muted/40">
+                        <div className="shrink-0 text-xl">
+                          {isImage ? "🖼️" : "📄"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium hover:underline truncate block"
+                          >
+                            {doc.name}
+                          </a>
+                          <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                            {doc.uploadedByName && <span>{doc.uploadedByName}</span>}
+                            <span>{new Date(doc.uploadedAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        {isImage && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDocPreviewUrl(doc.url)}
+                          >
+                            👁
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDocDelete(doc.id)}
+                        >
+                          🗑️
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+          )}
         </Tabs>
       </main>
 
@@ -2118,32 +2579,32 @@ export default function LocationInventoryPage() {
             <DialogTitle>+ {t("newCustomer")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 mt-1">
-            <Input
-              placeholder={`${t("customerName")} *`}
+            <FloatLabelInput
+              label={`${t("customerName")} *`}
               value={newCustomer.name}
               onChange={(e) => setNewCustomer((f) => ({ ...f, name: e.target.value }))}
               autoFocus
             />
             <div className="grid grid-cols-2 gap-3">
-              <Input
-                placeholder={t("phone")}
+              <FloatLabelInput
+                label={t("phone")}
                 value={newCustomer.phone}
                 onChange={(e) => setNewCustomer((f) => ({ ...f, phone: e.target.value }))}
               />
-              <Input
-                placeholder={t("email")}
+              <FloatLabelInput
+                label={t("email")}
                 type="email"
                 value={newCustomer.email}
                 onChange={(e) => setNewCustomer((f) => ({ ...f, email: e.target.value }))}
               />
             </div>
-            <Input
-              placeholder={t("supplierCompany")}
+            <FloatLabelInput
+              label={t("supplierCompany")}
               value={newCustomer.address}
               onChange={(e) => setNewCustomer((f) => ({ ...f, address: e.target.value }))}
             />
-            <Input
-              placeholder={t("notes")}
+            <FloatLabelInput
+              label={t("notes")}
               value={newCustomer.notes}
               onChange={(e) => setNewCustomer((f) => ({ ...f, notes: e.target.value }))}
             />
@@ -2908,6 +3369,508 @@ export default function LocationInventoryPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ── Import Stock Dialog ── */}
+      <Dialog open={showImportDialog} onOpenChange={(open) => { if (!open) setShowImportDialog(false); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("importStock")}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleImportSubmit} className="space-y-5 py-2">
+            {importHasNegativeQty && (
+              <div className="rounded-lg border border-yellow-400 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                ⚠️ {t("negativeQtyWarning")}
+              </div>
+            )}
+
+            {/* Supplier */}
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("supplier")}</label>
+              <Select value={importSupplierId} onValueChange={setImportSupplierId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t("selectSupplier")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— {t("selectSupplier")} —</SelectItem>
+                  {suppliers.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}{s.address ? ` — ${s.address}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <button
+                type="button"
+                onClick={() => {
+                  setImportNewSupplier({ name: "", address: "", phone: "", email: "" });
+                  setImportSupplierOpen(true);
+                }}
+                className="mt-1.5 text-xs text-primary hover:underline"
+              >
+                + {t("addNewSupplier")}
+              </button>
+            </div>
+
+            {/* Items */}
+            <div className="space-y-3">
+              {importItems.map((item, idx) => {
+                const prod = importGetProduct(item.productId);
+                const qty = item.quantity ? Number(parseDots(item.quantity)) : null;
+                const isNeg = qty !== null && qty < 0;
+                return (
+                  <div
+                    key={item.uid}
+                    className={`rounded-xl border p-4 space-y-3 bg-card ${isNeg ? "border-yellow-400" : ""}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">#{idx + 1}</span>
+                      {importItems.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive h-6 px-2 text-xs"
+                          onClick={() => importRemoveItem(item.uid)}
+                        >
+                          ✕ {t("removeItem")}
+                        </Button>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">{t("selectProduct")} *</label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-start font-normal"
+                        onClick={() => importOpenPicker(item.uid)}
+                      >
+                        {prod ? (
+                          <span>
+                            {prod.name}{" "}
+                            <span className="text-muted-foreground font-mono text-xs">({prod.sku})</span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">{t("selectProduct")}...</span>
+                        )}
+                      </Button>
+                      {prod && (
+                        <p className="text-xs mt-1">
+                          {t("currentStock")}:{" "}
+                          <span className="font-semibold text-primary">{prod.quantity.toLocaleString()}</span>
+                          {prod.unit && <span className="ml-1 text-muted-foreground">{prod.unit}</span>}
+                        </p>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">{t("quantity")} *</label>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={item.quantity}
+                          onChange={(e) => importHandleQuantityChange(item.uid, e.target.value)}
+                          required
+                          className={isNeg ? "border-yellow-400 focus-visible:ring-yellow-400" : ""}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">{t("unit")}</label>
+                        <Input
+                          value={prod?.unit ?? "—"}
+                          readOnly
+                          className="bg-muted text-muted-foreground cursor-default"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">
+                          {t("unitPrice")} *{" "}
+                          <span className="text-muted-foreground font-mono text-xs">
+                            ({location?.currency || "VND"})
+                          </span>
+                        </label>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={item.unitPrice}
+                          onChange={(e) =>
+                            importUpdateItem(item.uid, "unitPrice", formatWithDots(e.target.value))
+                          }
+                          required
+                        />
+                      </div>
+                    </div>
+                    {item.quantity && item.unitPrice && (
+                      <p className="text-xs text-right text-muted-foreground">
+                        ={" "}
+                        {(
+                          Number(parseDots(item.quantity)) * Number(parseDots(item.unitPrice))
+                        ).toLocaleString()}{" "}
+                        {location?.currency || "VND"}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+              <Button type="button" variant="outline" className="w-full" onClick={importAddItem}>
+                + {t("addItem")}
+              </Button>
+              {importGrandTotal !== 0 && (
+                <div className="flex justify-between items-center rounded-xl border px-4 py-3 bg-muted/40 font-medium">
+                  <span className="text-sm">{t("totalPrice")}</span>
+                  <span className="font-mono">
+                    {importGrandTotal.toLocaleString()} {location?.currency || "VND"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="text-sm font-medium mb-1 block">
+                {t("notes")}
+                {importHasNegativeQty && (
+                  <span className="ml-1 text-yellow-600 font-normal text-xs">* {t("required")}</span>
+                )}
+              </label>
+              <Input
+                value={importNotes}
+                onChange={(e) => setImportNotes(e.target.value)}
+                placeholder={importHasNegativeQty ? t("negativeQtyNotePlaceholder") : t("optional")}
+                required={importHasNegativeQty}
+                className={
+                  importHasNegativeQty && !importNotes.trim()
+                    ? "border-yellow-400 focus-visible:ring-yellow-400"
+                    : ""
+                }
+              />
+            </div>
+
+            {/* Attachments */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">{t("attachments")}</label>
+              <AttachmentSlots
+                files={importFiles}
+                onChange={setImportFiles}
+                onPreview={setImportPreviewUrl}
+              />
+            </div>
+
+            <Button type="submit" className="w-full" disabled={isImportSubmitting}>
+              {isImportSubmitting ? t("submitting") : t("confirmImport")}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Import: Product Picker Dialog ── */}
+      <Dialog
+        open={importPickerOpen}
+        onOpenChange={(open) => {
+          setImportPickerOpen(open);
+          if (!open) setImportPickerView("search");
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {importPickerView === "add" ? t("addNewProduct") : t("selectProduct")}
+            </DialogTitle>
+          </DialogHeader>
+          {importPickerView === "search" ? (
+            <>
+              <Input
+                placeholder={t("searchProduct")}
+                value={importProductSearch}
+                onChange={(e) => setImportProductSearch(e.target.value)}
+                autoFocus
+              />
+              <div className="mt-2 max-h-72 overflow-y-auto space-y-1">
+                {importFilteredProducts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    {t("noProductFound")}
+                  </p>
+                ) : (
+                  importFilteredProducts.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => importSelectProduct(p)}
+                      className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-muted transition-colors"
+                    >
+                      <p className="text-sm font-medium">{p.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {p.sku && <span className="mr-2">{p.sku}</span>}
+                        {p.unit && <span className="mr-2">· {p.unit}</span>}
+                        {t("currentStock")}:{" "}
+                        <span className="font-semibold text-primary">
+                          {p.quantity.toLocaleString()}
+                        </span>
+                      </p>
+                    </button>
+                  ))
+                )}
+              </div>
+              <div className="pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setImportPickerView("add")}
+                  className="text-xs text-primary hover:underline"
+                >
+                  + {t("addNewProduct")}
+                </button>
+              </div>
+            </>
+          ) : (
+            <form onSubmit={importHandleCreateProduct} className="space-y-3 mt-1">
+              <div>
+                <label className="text-sm font-medium mb-1 block">{t("itemName")} *</label>
+                <Input
+                  value={importNewProductName}
+                  onChange={(e) => setImportNewProductName(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">{t("sku")}</label>
+                <Input
+                  value={importNewProductSku}
+                  onChange={(e) => setImportNewProductSku(e.target.value)}
+                  placeholder={t("optional")}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">{t("unit")} *</label>
+                <Input
+                  value={importNewProductUnit}
+                  onChange={(e) => setImportNewProductUnit(e.target.value)}
+                  placeholder={t("unitPlaceholder")}
+                  required
+                />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setImportPickerView("search")}
+                >
+                  ← {t("back")}
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={
+                    isCreatingImportProduct ||
+                    !importNewProductName.trim() ||
+                    !importNewProductUnit.trim()
+                  }
+                >
+                  {isCreatingImportProduct ? t("creating") : t("addItem")}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Import: Add New Supplier Dialog ── */}
+      <Dialog open={importSupplierOpen} onOpenChange={setImportSupplierOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("addNewSupplier")}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={importHandleCreateSupplier} className="space-y-3 mt-1">
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("supplierName")} *</label>
+              <Input
+                value={importNewSupplier.name}
+                onChange={(e) => setImportNewSupplier((f) => ({ ...f, name: e.target.value }))}
+                autoFocus
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("supplierCompany")}</label>
+              <Input
+                value={importNewSupplier.address}
+                onChange={(e) => setImportNewSupplier((f) => ({ ...f, address: e.target.value }))}
+                placeholder={t("optional")}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium mb-1 block">{t("phone")}</label>
+                <Input
+                  value={importNewSupplier.phone}
+                  onChange={(e) => setImportNewSupplier((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder={t("optional")}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">{t("email")}</label>
+                <Input
+                  type="email"
+                  value={importNewSupplier.email}
+                  onChange={(e) => setImportNewSupplier((f) => ({ ...f, email: e.target.value }))}
+                  placeholder={t("optional")}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => setImportSupplierOpen(false)}
+              >
+                {t("back")}
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={isCreatingImportSupplier || !importNewSupplier.name.trim()}
+              >
+                {isCreatingImportSupplier ? t("creating") : t("addSupplier")}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Import: Image Preview ── */}
+      {importPreviewUrl && (
+        <Dialog open={!!importPreviewUrl} onOpenChange={() => setImportPreviewUrl(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{t("previewImage")}</DialogTitle>
+            </DialogHeader>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={importPreviewUrl}
+              alt="preview"
+              className="w-full rounded-lg object-contain max-h-[70vh]"
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* ── Add Expense Dialog ── */}
+      <Dialog open={showExpenseDialog} onOpenChange={setShowExpenseDialog}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("addExpense")}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleExpenseSubmit} className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("expenseType")}</label>
+              <Select
+                value={expenseForm.type}
+                onValueChange={(v) => setExpenseForm((f) => ({ ...f, type: v }))}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["RENT","UTILITIES","SALARY","MAINTENANCE","SUPPLIES","CLEANING","SECURITY","INSURANCE","REPAIR","OTHER"].map(
+                    (type) => (
+                      <SelectItem key={type} value={type}>
+                        {t(`expense${type.charAt(0) + type.slice(1).toLowerCase()}`)}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("amount")}</label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={expenseForm.amount}
+                  onChange={(e) =>
+                    setExpenseForm((f) => ({ ...f, amount: formatWithDots(e.target.value) }))
+                  }
+                  required
+                  className="flex-1"
+                />
+                <Select
+                  value={expenseForm.currency}
+                  onValueChange={(v) => setExpenseForm((f) => ({ ...f, currency: v }))}
+                >
+                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="VND">🇻🇳 VND</SelectItem>
+                    <SelectItem value="USD">🇺🇸 USD</SelectItem>
+                    <SelectItem value="EUR">🇪🇺 EUR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("description")}</label>
+              <Input
+                value={expenseForm.description}
+                onChange={(e) => setExpenseForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder={t("optional")}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("notes")}</label>
+              <Input
+                value={expenseForm.notes}
+                onChange={(e) => setExpenseForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder={t("optional")}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">{t("attachments")}</label>
+              <AttachmentSlots
+                files={expenseFiles}
+                onChange={setExpenseFiles}
+                onPreview={setExpensePreviewUrl}
+                accept="image/*,.pdf,.doc,.docx"
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={isExpenseSubmitting}>
+              {isExpenseSubmitting ? t("submitting") : t("addExpense")}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Expense: Image Preview ── */}
+      {expensePreviewUrl && (
+        <Dialog open={!!expensePreviewUrl} onOpenChange={() => setExpensePreviewUrl(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{t("previewImage")}</DialogTitle>
+            </DialogHeader>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={expensePreviewUrl}
+              alt="preview"
+              className="w-full rounded-lg object-contain max-h-[70vh]"
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* ── Document: Image Preview ── */}
+      {docPreviewUrl && (
+        <Dialog open={!!docPreviewUrl} onOpenChange={() => setDocPreviewUrl(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{t("previewImage")}</DialogTitle>
+            </DialogHeader>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={docPreviewUrl}
+              alt="preview"
+              className="w-full rounded-lg object-contain max-h-[70vh]"
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

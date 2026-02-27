@@ -10,6 +10,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const ALL_PERMISSIONS = [
   "MANAGE_PRODUCTS",
@@ -50,8 +56,15 @@ export default function LocationDetailPage() {
   const [location, setLocation] = useState<Location | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [accessMap, setAccessMap] = useState<Record<string, string[]>>({});
+  // tracks which users have been added to this branch (have a record)
+  const [addedUserIds, setAddedUserIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+
+  // Add user dialog
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [addUserSearch, setAddUserSearch] = useState("");
 
   useEffect(() => {
     loadData();
@@ -64,11 +77,12 @@ export default function LocationDetailPage() {
         axiosInstance.get("/admin/users"),
       ]);
       setLocation(locRes.data.location);
-      setUsers(usersRes.data.users);
+      const allUsers: User[] = usersRes.data.users;
+      setUsers(allUsers);
 
-      // Load each user's access for this location
+      // Load each user's access to find who has been added to this location
       const accessResults = await Promise.all(
-        usersRes.data.users.map((u: User) =>
+        allUsers.map((u) =>
           axiosInstance
             .get(`/admin/users/${u.id}/access`)
             .then((r: { data: { access: AccessRecord[] } }) => ({ userId: u.id, access: r.data.access }))
@@ -77,11 +91,18 @@ export default function LocationDetailPage() {
       );
 
       const map: Record<string, string[]> = {};
+      const added = new Set<string>();
       accessResults.forEach(({ userId, access }) => {
         const record = access.find((a: AccessRecord) => a.locationId === locationId);
-        map[userId] = record?.permissions || [];
+        if (record) {
+          map[userId] = record.permissions;
+          added.add(userId);
+        } else {
+          map[userId] = [];
+        }
       });
       setAccessMap(map);
+      setAddedUserIds(added);
     } catch {
       toast({ title: t("loadFailed"), variant: "destructive" });
     } finally {
@@ -102,7 +123,6 @@ export default function LocationDetailPage() {
   const saveUserAccess = async (userId: string) => {
     setSavingUserId(userId);
     try {
-      // Get current full access list, replace this location's entry
       const currentRes = await axiosInstance.get(`/admin/users/${userId}/access`);
       const existing: AccessRecord[] = currentRes.data.access;
       const otherLocations = existing.filter((a) => a.locationId !== locationId);
@@ -110,6 +130,8 @@ export default function LocationDetailPage() {
       await axiosInstance.put(`/admin/users/${userId}/access`, {
         access: [...otherLocations, thisAccess],
       });
+      // Mark as properly added in DB
+      setAddedUserIds((prev) => new Set([...prev, userId]));
       toast({ title: t("accessSaved") });
     } catch {
       toast({ title: t("saveFailed"), variant: "destructive" });
@@ -117,6 +139,49 @@ export default function LocationDetailPage() {
       setSavingUserId(null);
     }
   };
+
+  const handleRemoveUser = async (userId: string) => {
+    setRemovingUserId(userId);
+    try {
+      const currentRes = await axiosInstance.get(`/admin/users/${userId}/access`);
+      const existing: AccessRecord[] = currentRes.data.access;
+      const otherLocations = existing.filter((a) => a.locationId !== locationId);
+      await axiosInstance.put(`/admin/users/${userId}/access`, {
+        access: otherLocations,
+      });
+      setAddedUserIds((prev) => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+      setAccessMap((prev) => {
+        const next = { ...prev };
+        next[userId] = [];
+        return next;
+      });
+      toast({ title: t("userRemoved") });
+    } catch {
+      toast({ title: t("saveFailed"), variant: "destructive" });
+    } finally {
+      setRemovingUserId(null);
+    }
+  };
+
+  const handleAddUser = (userId: string) => {
+    setAddedUserIds((prev) => new Set([...prev, userId]));
+    setAccessMap((prev) => ({ ...prev, [userId]: prev[userId] || [] }));
+    setShowAddUser(false);
+    setAddUserSearch("");
+  };
+
+  const addedUsers = users.filter((u) => addedUserIds.has(u.id));
+  const availableUsers = users.filter(
+    (u) =>
+      !addedUserIds.has(u.id) &&
+      (addUserSearch === "" ||
+        u.name.toLowerCase().includes(addUserSearch.toLowerCase()) ||
+        u.username.toLowerCase().includes(addUserSearch.toLowerCase()))
+  );
 
   if (isLoading) return <p className="text-muted-foreground">{t("loading")}</p>;
   if (!location) return <p className="text-muted-foreground">{t("notFound")}</p>;
@@ -142,25 +207,49 @@ export default function LocationDetailPage() {
         </TabsList>
 
         <TabsContent value="users" className="space-y-4 mt-4">
-          {users.length === 0 ? (
-            <p className="text-muted-foreground">{t("noUsers")}</p>
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {addedUsers.length > 0
+                ? `${addedUsers.length} user${addedUsers.length > 1 ? "s" : ""} in this branch`
+                : ""}
+            </p>
+            <Button onClick={() => { setAddUserSearch(""); setShowAddUser(true); }}>
+              + {t("addUserToLocation")}
+            </Button>
+          </div>
+
+          {/* User list */}
+          {addedUsers.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground text-sm">
+              {t("noAddedUsers")}
+            </div>
           ) : (
-            users.map((u) => (
+            addedUsers.map((u) => (
               <div key={u.id} className="rounded-xl border bg-card p-5 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <div>
                     <p className="font-medium">{u.name}</p>
-                    <p className="text-sm text-muted-foreground font-mono">
-                      @{u.username}
-                    </p>
+                    <p className="text-sm text-muted-foreground font-mono">@{u.username}</p>
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => saveUserAccess(u.id)}
-                    disabled={savingUserId === u.id}
-                  >
-                    {savingUserId === u.id ? t("saving") : t("save")}
-                  </Button>
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                      disabled={removingUserId === u.id}
+                      onClick={() => handleRemoveUser(u.id)}
+                    >
+                      {removingUserId === u.id ? t("removing") : t("removeFromLocation")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => saveUserAccess(u.id)}
+                      disabled={savingUserId === u.id}
+                    >
+                      {savingUserId === u.id ? t("saving") : t("save")}
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -182,6 +271,45 @@ export default function LocationDetailPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* ── Add User Dialog ── */}
+      <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>+ {t("addUserToLocation")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-1">
+            <Input
+              placeholder={t("addUserSearch")}
+              value={addUserSearch}
+              onChange={(e) => setAddUserSearch(e.target.value)}
+              autoFocus
+            />
+            <div className="max-h-72 overflow-y-auto rounded-xl border divide-y">
+              {availableUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8 px-4">
+                  {t("noUsersAvailable")}
+                </p>
+              ) : (
+                availableUsers.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/60 transition-colors text-left"
+                    onClick={() => handleAddUser(u.id)}
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{u.name}</p>
+                      <p className="text-xs text-muted-foreground font-mono">@{u.username}</p>
+                    </div>
+                    <span className="text-xs text-primary font-medium">+ Add</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
