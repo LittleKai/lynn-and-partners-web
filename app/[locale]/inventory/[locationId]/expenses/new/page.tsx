@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+import AppHeader from "@/app/AppHeader/AppHeader";
 import {
   Select,
   SelectContent,
@@ -111,6 +112,7 @@ export default function NewExpensePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <AppHeader />
       <main className="container mx-auto px-6 py-8 max-w-lg space-y-6">
         <div className="flex items-center gap-3">
           <Link

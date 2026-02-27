@@ -47,11 +47,13 @@ model Category {
 model Product {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   locationId  String   @db.ObjectId
-  categoryId  String   @db.ObjectId
+  categoryId  String?  @db.ObjectId
   supplierId  String?  @db.ObjectId
   name        String
   sku         String
+  unit        String
   price       Float
+  salePrice   Float    @default(0)
   quantity    BigInt
   status      String
   imageUrl    String?
@@ -99,6 +101,51 @@ model InventoryTransaction {
   fileUrls    String[]
   createdById String   @db.ObjectId
   createdAt   DateTime @db.Date
+}
+
+model Customer {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId String   @db.ObjectId
+  name       String
+  phone      String?
+  email      String?
+  address    String?
+  notes      String?
+  createdAt  DateTime @default(now()) @db.Date
+}
+
+model Guest {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  locationId String    @db.ObjectId
+  customerId String?   @db.ObjectId
+  roomNumber String?
+  checkIn    DateTime  @db.Date
+  checkOut   DateTime? @db.Date
+  adults     Int       @default(1)
+  children   Int       @default(0)
+  notes      String?
+  status     String    @default("active") // "active" | "checked-out"
+  createdAt  DateTime  @default(now()) @db.Date
+}
+
+type SaleOrderItem {
+  productId   String @db.ObjectId
+  productName String
+  quantity    Int
+  salePrice   Float  @default(0)
+  totalPrice  Float  @default(0)
+}
+
+model SaleOrder {
+  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  locationId    String          @db.ObjectId
+  customerId    String?         @db.ObjectId
+  notes         String?
+  totalAmount   Float           @default(0)
+  createdById   String?         @db.ObjectId
+  createdByName String?
+  createdAt     DateTime        @default(now()) @db.Date
+  items         SaleOrderItem[]
 }
 
 model Expense {

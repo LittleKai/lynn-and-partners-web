@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/authContext";
-import { useTranslations } from "next-intl";
+import AppHeader from "@/app/AppHeader/AppHeader";
 
 export default function AdminLayout({
   children,
@@ -12,7 +12,6 @@ export default function AdminLayout({
 }) {
   const { isLoggedIn, isInitializing, user } = useAuth();
   const router = useRouter();
-  const t = useTranslations("admin");
 
   useEffect(() => {
     if (isInitializing) return;
@@ -31,21 +30,7 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">Lynn &amp; Partners</h1>
-          <span className="text-muted-foreground">|</span>
-          <span className="text-sm text-muted-foreground">{t("adminPanel")}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">
-            {user.name} ({user.role})
-          </span>
-          <a href="/inventory" className="text-sm text-primary hover:underline">
-            {t("inventory")}
-          </a>
-        </div>
-      </header>
+      <AppHeader />
       <main className="container mx-auto px-6 py-8">{children}</main>
     </div>
   );

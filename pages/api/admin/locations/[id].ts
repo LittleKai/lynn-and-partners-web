@@ -4,6 +4,11 @@ import { getSessionServer } from "@/utils/auth";
 
 const prisma = new PrismaClient();
 
+/** Replicates the same sanitisation used in the upload API */
+function safeLocationName(name: string): string {
+  return name.trim().replace(/[/\\:*?"<>|]/g, "-") || "general";
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -32,16 +37,45 @@ export default async function handler(
     }
 
     case "PUT": {
-      const { name, type, description, address } = req.body;
+      const { name, type, currency, description, address } = req.body;
+
       const updated = await prisma.location.update({
         where: { id },
         data: {
           ...(name && { name }),
           ...(type && { type }),
+          ...(currency && { currency }),
           ...(description !== undefined && { description }),
           ...(address !== undefined && { address }),
         },
       });
+
+      // If name changed and using Dropbox, rename the folder (best-effort)
+      if (
+        name &&
+        name !== location.name &&
+        process.env.UPLOAD_PROVIDER === "dropbox"
+      ) {
+        try {
+          const { getDropboxClient, DROPBOX_FOLDER } = await import(
+            "@/utils/dropbox"
+          );
+          const fromPath = `${DROPBOX_FOLDER}/${safeLocationName(location.name)}`;
+          const toPath = `${DROPBOX_FOLDER}/${safeLocationName(name)}`;
+
+          if (fromPath !== toPath) {
+            const dbx = getDropboxClient();
+            await dbx.filesMoveV2({
+              from_path: fromPath,
+              to_path: toPath,
+              autorename: true,
+            });
+          }
+        } catch {
+          // Folder may not exist yet or rename failed — silently ignore
+        }
+      }
+
       return res.status(200).json({ location: updated });
     }
 

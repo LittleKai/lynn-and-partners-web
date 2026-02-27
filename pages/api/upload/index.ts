@@ -19,10 +19,10 @@ function isImage(filename: string): boolean {
 
 /**
  * Build Dropbox path:
- *   /{DROPBOX_FOLDER}/{locationName}/{YYYY-MM-DD}/{HH-MM-SS}_{safeName}
+ *   /{DROPBOX_FOLDER}/{locationName}/{YYYY}/{MM}/{DD}-{safeName}
  *
  * Example:
- *   /lynn-partners-web/Kho Hà Nội/2026-02-26/14-30-25_hoa-don.pdf
+ *   /lynn-partners/Kho Hà Nội/2026/02/27-hoa-don.pdf
  */
 function buildDropboxPath(
   baseFolder: string,
@@ -30,18 +30,9 @@ function buildDropboxPath(
   originalName: string
 ): string {
   const now = new Date();
-
-  const dateFolder = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-  ].join("-"); // 2026-02-26
-
-  const timePrefix = [
-    String(now.getHours()).padStart(2, "0"),
-    String(now.getMinutes()).padStart(2, "0"),
-    String(now.getSeconds()).padStart(2, "0"),
-  ].join("-"); // 14-30-25
+  const year = String(now.getFullYear());
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
 
   // Sanitize location name: keep unicode letters/numbers, replace special chars
   const safeLocation = locationName.trim().replace(/[/\\:*?"<>|]/g, "-") || "general";
@@ -49,7 +40,7 @@ function buildDropboxPath(
   // Sanitize filename: keep alphanumeric, dot, dash, underscore
   const safeName = originalName.replace(/[^a-zA-Z0-9.\-_àáảãạăắặẳẵặâấầẩẫậđèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵÀÁẢÃẠĂẮẶẲẴẶÂẤẦẨẪẬĐÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ]/g, "_").substring(0, 80);
 
-  return `${baseFolder}/${safeLocation}/${dateFolder}/${timePrefix}_${safeName}`;
+  return `${baseFolder}/${safeLocation}/${year}/${month}/${day}-${safeName}`;
 }
 
 // ─── Cloudinary upload ──────────────────────────────────────────────

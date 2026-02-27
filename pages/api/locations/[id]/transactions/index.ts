@@ -26,10 +26,21 @@ export default async function handler(
         where: { locationId },
         orderBy: { createdAt: "desc" },
       });
+      // Resolve creator names
+      const userIds = [
+        ...new Set(transactions.map((t) => t.createdById).filter(Boolean)),
+      ] as string[];
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, name: true },
+      });
+      const userMap: Record<string, string> = {};
+      users.forEach((u) => { userMap[u.id] = u.name; });
       return res.status(200).json({
         transactions: transactions.map((t) => ({
           ...t,
           quantity: Number(t.quantity),
+          createdByName: userMap[t.createdById] || null,
         })),
       });
     }
@@ -54,6 +65,12 @@ export default async function handler(
         return res
           .status(400)
           .json({ error: "productId, quantity, and type are required" });
+      }
+
+      if (type === "EXPORT" && !notes?.trim()) {
+        return res
+          .status(400)
+          .json({ error: "Notes are required for export transactions" });
       }
 
       if (type !== "IMPORT" && type !== "EXPORT") {
@@ -102,6 +119,9 @@ export default async function handler(
               type === "IMPORT"
                 ? product.quantity + qty
                 : product.quantity - qty,
+            ...(type === "IMPORT" && unitPrice
+              ? { price: Number(unitPrice) }
+              : {}),
           },
         }),
       ]);

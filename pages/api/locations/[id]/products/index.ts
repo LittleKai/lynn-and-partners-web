@@ -45,6 +45,7 @@ export default async function handler(
       const {
         name,
         sku,
+        unit,
         price,
         quantity,
         status,
@@ -53,21 +54,20 @@ export default async function handler(
         imageUrl,
       } = req.body;
 
-      if (!name || !sku || price === undefined || quantity === undefined) {
-        return res
-          .status(400)
-          .json({ error: "name, sku, price, quantity are required" });
+      if (!name || !unit) {
+        return res.status(400).json({ error: "name and unit are required" });
       }
 
       const product = await prisma.product.create({
         data: {
           locationId,
-          categoryId,
+          categoryId: categoryId || null,
           supplierId: supplierId || null,
           name,
-          sku,
-          price: Number(price),
-          quantity: BigInt(quantity),
+          sku: sku || "",
+          unit,
+          price: price !== undefined ? Number(price) : 0,
+          quantity: quantity !== undefined ? BigInt(quantity) : BigInt(0),
           status: status || "available",
           imageUrl: imageUrl || null,
           createdById: session.id,
