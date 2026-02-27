@@ -84,6 +84,7 @@
     "typeNameToConfirm": "Nhập tên địa điểm để xác nhận:",
     "deleteLocationWarning": "Thao tác này sẽ xóa vĩnh viễn địa điểm và TOÀN BỘ dữ liệu — mặt hàng, giao dịch, nhà cung cấp, danh mục và chi phí.",
     "accessSaved": "Đã lưu quyền truy cập.",
+    "createdBy": "Được tạo bởi",
     "noAdmins": "Chưa có admin nào.",
     "noUsers": "Chưa có người dùng nào.",
     "noLocations": "Chưa có địa điểm nào.",

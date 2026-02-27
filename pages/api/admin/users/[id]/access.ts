@@ -29,10 +29,6 @@ export default async function handler(
     return res.status(404).json({ error: "User not found" });
   }
 
-  if (session.role === "admin" && target.createdById !== session.id) {
-    return res.status(403).json({ error: "Forbidden" });
-  }
-
   switch (req.method) {
     case "GET": {
       const accessList = await prisma.userLocationAccess.findMany({

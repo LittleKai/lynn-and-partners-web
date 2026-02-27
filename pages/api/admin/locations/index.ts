@@ -15,11 +15,7 @@ export default async function handler(
 
   switch (req.method) {
     case "GET": {
-      // Superadmin sees all; admin sees only their own
-      const where =
-        session.role === "superadmin" ? {} : { adminId: session.id };
       const locations = await prisma.location.findMany({
-        where,
         orderBy: { createdAt: "desc" },
       });
       return res.status(200).json({ locations });

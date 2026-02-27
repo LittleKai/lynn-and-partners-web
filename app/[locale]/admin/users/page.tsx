@@ -20,6 +20,8 @@ interface User {
   username: string;
   name: string;
   createdAt: string;
+  createdByName?: string | null;
+  createdByUsername?: string | null;
 }
 
 export default function UsersPage() {
@@ -133,6 +135,7 @@ export default function UsersPage() {
               <tr>
                 <th className="px-4 py-3 text-left font-medium">{t("username")}</th>
                 <th className="px-4 py-3 text-left font-medium">{t("name")}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("createdBy")}</th>
                 <th className="px-4 py-3 text-left font-medium">{t("createdAt")}</th>
                 <th className="px-4 py-3 text-right font-medium">{t("actions")}</th>
               </tr>
@@ -142,6 +145,11 @@ export default function UsersPage() {
                 <tr key={u.id} className="border-t hover:bg-muted/50">
                   <td className="px-4 py-3 font-mono">@{u.username}</td>
                   <td className="px-4 py-3">{u.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-sm">
+                    {u.createdByName
+                      ? <span>{u.createdByName} <span className="text-xs opacity-60">@{u.createdByUsername}</span></span>
+                      : "—"}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {new Date(u.createdAt).toLocaleDateString()}
                   </td>

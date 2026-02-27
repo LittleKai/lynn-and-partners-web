@@ -16,20 +16,36 @@ export default async function handler(
   switch (req.method) {
     case "GET": {
       const users = await prisma.user.findMany({
-        where: {
-          role: "user",
-          createdById: session.id,
-        },
+        where: { role: "user" },
         select: {
           id: true,
           username: true,
           name: true,
           role: true,
           createdAt: true,
+          createdById: true,
         },
         orderBy: { createdAt: "desc" },
       });
-      return res.status(200).json({ users });
+
+      // Resolve creator names
+      const creatorIds = [
+        ...new Set(users.map((u) => u.createdById).filter(Boolean)),
+      ] as string[];
+      const creators = await prisma.user.findMany({
+        where: { id: { in: creatorIds } },
+        select: { id: true, name: true, username: true },
+      });
+      const creatorMap: Record<string, { name: string; username: string }> = {};
+      creators.forEach((c) => { creatorMap[c.id] = { name: c.name, username: c.username }; });
+
+      return res.status(200).json({
+        users: users.map((u) => ({
+          ...u,
+          createdByName: u.createdById ? creatorMap[u.createdById]?.name || null : null,
+          createdByUsername: u.createdById ? creatorMap[u.createdById]?.username || null : null,
+        })),
+      });
     }
 
     case "POST": {

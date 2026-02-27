@@ -84,6 +84,7 @@
     "typeNameToConfirm": "Type the location name to confirm:",
     "deleteLocationWarning": "This will permanently delete the location and ALL its data — products, transactions, suppliers, categories, and expenses.",
     "accessSaved": "Access permissions saved.",
+    "createdBy": "Created By",
     "noAdmins": "No admins found.",
     "noUsers": "No users found.",
     "noLocations": "No locations found.",

@@ -26,11 +26,6 @@ export default async function handler(
   const location = await prisma.location.findUnique({ where: { id } });
   if (!location) return res.status(404).json({ error: "Location not found" });
 
-  // Admin can only manage their own locations
-  if (session.role === "admin" && location.adminId !== session.id) {
-    return res.status(403).json({ error: "Forbidden" });
-  }
-
   switch (req.method) {
     case "GET": {
       return res.status(200).json({ location });
