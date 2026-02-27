@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 export const createProduct = async (data: {
   name: string;
   sku: string;
+  unit: string;
   price: number;
   quantity: number;
   status: string;
