@@ -181,6 +181,7 @@ model LocationDocument {
   id             String   @id @default(auto()) @map("_id") @db.ObjectId
   locationId     String   @db.ObjectId
   name           String
+  type           String?  @default("GENERAL") // "GENERAL" | "CONTRACT" | "INVOICE" | "REPORT" | "PERMIT" | "OTHER"
   notes          String?
   url            String
   resourceType   String   @default("raw") // "image" | "raw"

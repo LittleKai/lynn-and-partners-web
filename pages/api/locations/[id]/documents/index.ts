@@ -36,11 +36,12 @@ export default async function handler(
     }
 
     case "POST": {
-      const { name, url, resourceType, notes } = req.body as {
+      const { name, url, resourceType, notes, type } = req.body as {
         name: string;
         url: string;
         resourceType: string;
         notes?: string;
+        type?: string;
       };
 
       if (!name || !url) {
@@ -51,6 +52,7 @@ export default async function handler(
         data: {
           locationId,
           name,
+          type: type || "GENERAL",
           notes: notes || null,
           url,
           resourceType: resourceType || "raw",

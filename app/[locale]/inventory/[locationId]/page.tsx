@@ -85,79 +85,31 @@ export default function LocationInventoryPage() {
 
         <Tabs defaultValue="items">
           {/* ── Main tabs ── */}
-          <TabsList className={`grid w-full h-auto p-1 gap-1 ${isAdmin ? "grid-cols-5" : "grid-cols-4"}`}>
-            <TabsTrigger
-              value="items"
-              className="flex flex-col sm:flex-row items-center gap-1.5 py-2.5 data-[state=active]:shadow-sm"
-            >
+          <TabsList className="flex w-full h-auto p-1 gap-1 overflow-x-auto">
+            <TabsTrigger value="items" className="flex flex-1 items-center justify-center gap-1.5 py-2 whitespace-nowrap">
               <Package className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm font-medium">
-                {t("products")}
-              </span>
-              <span className="text-xs bg-muted-foreground/10 rounded px-1.5 py-0.5 leading-none">
-                {products.length}
-              </span>
+              <span className="text-sm font-medium">{t("products")}</span>
             </TabsTrigger>
-            <TabsTrigger
-              value="sales"
-              className="flex flex-col sm:flex-row items-center gap-1.5 py-2.5 data-[state=active]:shadow-sm"
-            >
+            <TabsTrigger value="sales" className="flex flex-1 items-center justify-center gap-1.5 py-2 whitespace-nowrap">
               <ShoppingCart className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm font-medium">
-                {t("sales")}
-              </span>
-              <span className="text-xs bg-muted-foreground/10 rounded px-1.5 py-0.5 leading-none">
-                {orders.length}
-              </span>
+              <span className="text-sm font-medium">{t("sales")}</span>
             </TabsTrigger>
-            <TabsTrigger
-              value="expenses"
-              className="flex flex-col sm:flex-row items-center gap-1.5 py-2.5 data-[state=active]:shadow-sm"
-            >
+            <TabsTrigger value="expenses" className="flex flex-1 items-center justify-center gap-1.5 py-2 whitespace-nowrap">
               <Wallet className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm font-medium">
-                {t("expenses")}
-              </span>
-              <span className="text-xs bg-muted-foreground/10 rounded px-1.5 py-0.5 leading-none">
-                {expenses.length}
-              </span>
+              <span className="text-sm font-medium">{t("expenses")}</span>
             </TabsTrigger>
-            <TabsTrigger
-              value="customers"
-              className="flex flex-col sm:flex-row items-center gap-1.5 py-2.5 data-[state=active]:shadow-sm"
-            >
+            <TabsTrigger value="customers" className="flex flex-1 items-center justify-center gap-1.5 py-2 whitespace-nowrap">
               <Users className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm font-medium">
-                {t("customers")}
-              </span>
-              <span className="text-xs bg-muted-foreground/10 rounded px-1.5 py-0.5 leading-none">
-                {isHotel ? guests.length + rooms.length : customers.length}
-              </span>
+              <span className="text-sm font-medium">{t("customers")}</span>
             </TabsTrigger>
-            <TabsTrigger
-              value="announcements"
-              className="flex flex-col sm:flex-row items-center gap-1.5 py-2.5 data-[state=active]:shadow-sm"
-            >
+            <TabsTrigger value="announcements" className="flex flex-1 items-center justify-center gap-1.5 py-2 whitespace-nowrap">
               <Megaphone className="h-4 w-4 shrink-0" />
-              <span className="text-xs sm:text-sm font-medium">
-                {t("announcements")}
-              </span>
-              <span className="text-xs bg-muted-foreground/10 rounded px-1.5 py-0.5 leading-none">
-                {announcements.length}
-              </span>
+              <span className="text-sm font-medium">{t("announcements")}</span>
             </TabsTrigger>
             {isAdmin && (
-              <TabsTrigger
-                value="documents"
-                className="flex flex-col sm:flex-row items-center gap-1.5 py-2.5 data-[state=active]:shadow-sm"
-              >
+              <TabsTrigger value="documents" className="flex flex-1 items-center justify-center gap-1.5 py-2 whitespace-nowrap">
                 <FolderOpen className="h-4 w-4 shrink-0" />
-                <span className="text-xs sm:text-sm font-medium">
-                  {t("documents")}
-                </span>
-                <span className="text-xs bg-muted-foreground/10 rounded px-1.5 py-0.5 leading-none">
-                  {documents.length}
-                </span>
+                <span className="text-sm font-medium">{t("documents")}</span>
               </TabsTrigger>
             )}
           </TabsList>

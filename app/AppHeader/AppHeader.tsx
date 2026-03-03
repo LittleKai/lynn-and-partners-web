@@ -69,29 +69,29 @@ export default function AppHeader() {
           <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
 
           {/* Nav buttons */}
-          <Link href="/inventory">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("dashboard")}</span>
-            </Button>
-          </Link>
-
           {isAdmin && (
             <Link href="/admin">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+                className="h-8 gap-1.5 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-950/30"
               >
                 <ShieldCheck className="h-4 w-4" />
                 <span className="hidden sm:inline">{t("adminPanel")}</span>
               </Button>
             </Link>
           )}
+
+          <Link href="/inventory">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("dashboard")}</span>
+            </Button>
+          </Link>
         </div>
 
         {/* ── Right: user info + tools ── */}

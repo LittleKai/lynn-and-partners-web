@@ -75,6 +75,13 @@ export function NewOrderDialog({
     );
   };
 
+  const resetForm = () => {
+    setNewOrderCustomerId("");
+    setNewOrderGuestId("");
+    setNewOrderNotes("");
+    setNewOrderRows([{ productId: "", quantity: "1", salePrice: "0" }]);
+  };
+
   const handleCreateOrder = async () => {
     if (newOrderRows.some((r) => !r.productId || Number(r.quantity) < 1)) return;
     setIsOrderSubmitting(true);
@@ -92,10 +99,7 @@ export function NewOrderDialog({
       const newOrder: SaleOrder = res.data.order;
       onOrderCreated(newOrder, newOrderRows);
       onClose();
-      setNewOrderCustomerId("");
-      setNewOrderGuestId("");
-      setNewOrderNotes("");
-      setNewOrderRows([{ productId: "", quantity: "1", salePrice: "0" }]);
+      resetForm();
       toast({ title: t("orderCreated") });
     } catch {
       toast({ title: t("orderFailed"), variant: "destructive" });
@@ -107,10 +111,7 @@ export function NewOrderDialog({
   const handleClose = (open: boolean) => {
     if (!open) {
       onClose();
-      setNewOrderCustomerId("");
-      setNewOrderGuestId("");
-      setNewOrderNotes("");
-      setNewOrderRows([{ productId: "", quantity: "1", salePrice: "0" }]);
+      resetForm();
     }
   };
 
@@ -131,12 +132,25 @@ export function NewOrderDialog({
                   <SelectValue placeholder={t("selectGuest")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">{t("selectGuest")}</SelectItem>
-                  {activeGuests.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>
-                      {t("room")} {g.roomNumber || "?"}{getCustomerName(g.customerId) !== "—" ? ` — ${getCustomerName(g.customerId)}` : ""}
+                  <SelectItem value="none">— {t("selectGuest")} —</SelectItem>
+                  {activeGuests.length === 0 ? (
+                    <SelectItem value="__empty__" disabled>
+                      {t("noActiveGuests")}
                     </SelectItem>
-                  ))}
+                  ) : (
+                    activeGuests.map((g) => {
+                      const displayName = g.name || getCustomerName(g.customerId);
+                      const label = [
+                        g.roomNumber ? `${t("room")} ${g.roomNumber}` : null,
+                        displayName !== "—" ? displayName : null,
+                      ].filter(Boolean).join(" — ");
+                      return (
+                        <SelectItem key={g.id} value={g.id}>
+                          {label || `Guest #${g.id.slice(-4)}`}
+                        </SelectItem>
+                      );
+                    })
+                  )}
                 </SelectContent>
               </Select>
             ) : (
@@ -148,12 +162,18 @@ export function NewOrderDialog({
                   <SelectValue placeholder={t("selectCustomer")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">{t("selectCustomer")}</SelectItem>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
+                  <SelectItem value="none">— {t("selectCustomer")} —</SelectItem>
+                  {customers.length === 0 ? (
+                    <SelectItem value="__empty__" disabled>
+                      {t("noCustomers")}
                     </SelectItem>
-                  ))}
+                  ) : (
+                    customers.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             )}
@@ -203,11 +223,17 @@ export function NewOrderDialog({
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">{t("selectProduct")}</SelectItem>
-                            {products.filter((p) => p.status !== "inactive").map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name} ({t("available")}: {p.quantity})
-                              </SelectItem>
-                            ))}
+                            {products
+                              .filter((p) => p.status !== "inactive")
+                              .filter((p) =>
+                                p.id === row.productId ||
+                                !newOrderRows.some((r, i) => i !== idx && r.productId === p.id)
+                              )
+                              .map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.name} ({t("available")}: {p.quantity})
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                         {product && (
@@ -296,12 +322,8 @@ export function NewOrderDialog({
           <div className="flex gap-2 justify-end pt-2">
             <Button
               variant="outline"
-              onClick={() => {
-                onClose();
-                setNewOrderCustomerId("");
-                setNewOrderNotes("");
-                setNewOrderRows([{ productId: "", quantity: "1", salePrice: "0" }]);
-              }}
+              onClick={() => { onClose(); resetForm(); }}
+              disabled={isOrderSubmitting}
             >
               {t("cancel")}
             </Button>

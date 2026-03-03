@@ -59,7 +59,7 @@ export default async function handler(
           children: children ? Number(children) : 0,
           notes: notes || null,
           agreedPrice: agreedPrice !== undefined && agreedPrice !== "" ? Number(agreedPrice) : null,
-          status: checkOut ? "checked-out" : "active",
+          status: "active",
         },
       });
 

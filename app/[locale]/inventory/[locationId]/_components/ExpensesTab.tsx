@@ -41,6 +41,7 @@ export function ExpensesTab({
 
   // ── Local state ───────────────────────────────────────────────────
   const [expTypeFilter, setExpTypeFilter] = useState("ALL");
+  const [expMonthFilter, setExpMonthFilter] = useState(() => new Date().toISOString().slice(0, 7));
   const [expSort, setExpSort] = useState("date_desc");
   const [showExpenseDialog, setShowExpenseDialog] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
@@ -61,9 +62,11 @@ export function ExpensesTab({
   );
 
   const filteredExpenses = useMemo(() => {
-    let list = expenses.filter(
-      (e) => expTypeFilter === "ALL" || e.type === expTypeFilter
-    );
+    let list = expenses.filter((e) => {
+      if (expTypeFilter !== "ALL" && e.type !== expTypeFilter) return false;
+      if (expMonthFilter && e.createdAt.slice(0, 7) !== expMonthFilter) return false;
+      return true;
+    });
 
     const [field, dir] = expSort.split("_");
     list = [...list].sort((a, b) => {
@@ -78,7 +81,17 @@ export function ExpensesTab({
       return 0;
     });
     return list;
-  }, [expenses, expTypeFilter, expSort]);
+  }, [expenses, expTypeFilter, expMonthFilter, expSort]);
+
+  // Total per currency for filtered expenses
+  const filteredTotal = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const exp of filteredExpenses) {
+      const cur = exp.currency || "VND";
+      totals[cur] = (totals[cur] || 0) + exp.amount;
+    }
+    return totals;
+  }, [filteredExpenses]);
 
   // ── Handlers ──────────────────────────────────────────────────────
   const openExpenseDialog = () => {
@@ -151,7 +164,7 @@ export function ExpensesTab({
         </div>
 
         {/* Filter bar */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           <Select value={expTypeFilter} onValueChange={setExpTypeFilter}>
             <SelectTrigger className="w-44">
               <SelectValue />
@@ -165,6 +178,25 @@ export function ExpensesTab({
               ))}
             </SelectContent>
           </Select>
+          <div className="flex items-center gap-1">
+            <Input
+              type="month"
+              value={expMonthFilter}
+              onChange={(e) => setExpMonthFilter(e.target.value)}
+              className="w-44 h-10"
+            />
+            {expMonthFilter && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-10 px-2 text-muted-foreground"
+                onClick={() => setExpMonthFilter("")}
+                title={t("allMonths")}
+              >
+                ✕
+              </Button>
+            )}
+          </div>
           <Select value={expSort} onValueChange={setExpSort}>
             <SelectTrigger className="w-44">
               <SelectValue />
@@ -177,6 +209,21 @@ export function ExpensesTab({
             </SelectContent>
           </Select>
         </div>
+
+        {/* Total summary */}
+        {filteredExpenses.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-muted/60 border text-sm">
+            <span className="text-muted-foreground">{filteredExpenses.length} {t("expenses").toLowerCase()}</span>
+            <div className="flex items-center gap-3 font-medium">
+              <span className="text-muted-foreground font-normal">{t("totalExpenses")}:</span>
+              {Object.entries(filteredTotal).map(([currency, amount]) => (
+                <span key={currency} className="font-mono tabular-nums">
+                  {amount.toLocaleString()} <span className="text-muted-foreground text-xs font-sans">{currency}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {filteredExpenses.length === 0 ? (
           <p className="text-muted-foreground">{t("noExpenses")}</p>

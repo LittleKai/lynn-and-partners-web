@@ -37,12 +37,13 @@ export default async function handler(
   if (!doc) return res.status(404).json({ error: "Document not found" });
 
   if (req.method === "PUT") {
-    const { name, notes } = req.body as { name?: string; notes?: string };
+    const { name, notes, type } = req.body as { name?: string; notes?: string; type?: string };
     const updated = await prisma.locationDocument.update({
       where: { id: docId },
       data: {
         ...(name !== undefined ? { name: name.trim() || doc.name } : {}),
         notes: notes !== undefined ? (notes.trim() || null) : doc.notes,
+        ...(type !== undefined ? { type } : {}),
       },
     });
     return res.status(200).json({ document: updated });

@@ -204,7 +204,7 @@ export function SalesTab({
             <div className="flex flex-wrap gap-2">
               {canManageProducts && (
                 <Button size="sm" onClick={() => setShowNewOrder(true)}>
-                  💰 {t("newOrder")}
+                  💰 {t("newSale")}
                 </Button>
               )}
             </div>

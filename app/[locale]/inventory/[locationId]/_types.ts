@@ -93,6 +93,7 @@ export interface ImportItem {
 export interface LocationDoc {
   id: string;
   name: string;
+  type: string | null;
   notes: string | null;
   url: string;
   resourceType: string;
