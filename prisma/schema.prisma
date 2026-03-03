@@ -114,18 +114,32 @@ model Customer {
   createdAt  DateTime @default(now()) @db.Date
 }
 
+model Room {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId    String   @db.ObjectId
+  number        String   // e.g. "101", "A2"
+  status        String   @default("available") // "available" | "occupied" | "maintenance"
+  pricePerNight Float?
+  pricePerMonth Float?
+  notes         String?
+  createdAt     DateTime @default(now()) @db.Date
+}
+
 model Guest {
-  id         String    @id @default(auto()) @map("_id") @db.ObjectId
-  locationId String    @db.ObjectId
-  customerId String?   @db.ObjectId
-  roomNumber String?
-  checkIn    DateTime  @db.Date
-  checkOut   DateTime? @db.Date
-  adults     Int       @default(1)
-  children   Int       @default(0)
-  notes      String?
-  status     String    @default("active") // "active" | "checked-out"
-  createdAt  DateTime  @default(now()) @db.Date
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  locationId  String    @db.ObjectId
+  customerId  String?   @db.ObjectId
+  name        String?   // guest's name (can override/replace customerId link)
+  roomId      String?   @db.ObjectId
+  roomNumber  String?
+  checkIn     DateTime  @db.Date
+  checkOut    DateTime? @db.Date
+  adults      Int       @default(1)
+  children    Int       @default(0)
+  notes       String?
+  agreedPrice Float?    // agreed room price for this booking (overrides room default)
+  status      String    @default("active") // "active" | "checked-out"
+  createdAt   DateTime  @default(now()) @db.Date
 }
 
 type SaleOrderItem {
@@ -140,6 +154,7 @@ model SaleOrder {
   id            String          @id @default(auto()) @map("_id") @db.ObjectId
   locationId    String          @db.ObjectId
   customerId    String?         @db.ObjectId
+  guestId       String?         @db.ObjectId
   notes         String?
   totalAmount   Float           @default(0)
   createdById   String?         @db.ObjectId
@@ -166,9 +181,22 @@ model LocationDocument {
   id             String   @id @default(auto()) @map("_id") @db.ObjectId
   locationId     String   @db.ObjectId
   name           String
+  notes          String?
   url            String
   resourceType   String   @default("raw") // "image" | "raw"
   uploadedById   String   @db.ObjectId
   uploadedByName String?
   uploadedAt     DateTime @default(now()) @db.Date
+}
+
+model LocationAnnouncement {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId    String   @db.ObjectId
+  title         String
+  content       String
+  type          String   @default("info") // "info" | "warning" | "urgent"
+  createdById   String   @db.ObjectId
+  createdByName String?
+  createdAt     DateTime @default(now()) @db.Date
+  updatedAt     DateTime @updatedAt
 }

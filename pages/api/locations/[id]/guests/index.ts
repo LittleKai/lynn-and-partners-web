@@ -3,8 +3,9 @@ import { PrismaClient } from "@prisma/client";
 import { getSessionServer } from "@/utils/auth";
 import { hasLocationAccess } from "@/utils/permissions";
 
+const prisma = new PrismaClient();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const prisma = new PrismaClient() as any;
+const prismaAny = prisma as any;
 
 export default async function handler(
   req: NextApiRequest,
@@ -23,7 +24,7 @@ export default async function handler(
 
   switch (req.method) {
     case "GET": {
-      const guests = await prisma.guest.findMany({
+      const guests = await prismaAny.guest.findMany({
         where: { locationId },
         orderBy: { checkIn: "desc" },
       });
@@ -31,44 +32,81 @@ export default async function handler(
     }
 
     case "POST": {
-      const { customerId, roomNumber, checkIn, checkOut, adults, children, notes } =
+      const { customerId, name, roomId, checkIn, checkOut, adults, children, notes, agreedPrice } =
         req.body;
       if (!checkIn) return res.status(400).json({ error: "checkIn is required" });
+      if (!roomId) return res.status(400).json({ error: "roomId is required" });
 
-      const guest = await prisma.guest.create({
+      // Verify room belongs to this location and is available
+      const room = await prismaAny.room.findFirst({
+        where: { id: roomId, locationId },
+      });
+      if (!room) return res.status(404).json({ error: "Room not found" });
+      if (room.status !== "available") {
+        return res.status(400).json({ error: "Room is not available" });
+      }
+
+      const guest = await prismaAny.guest.create({
         data: {
           locationId,
           customerId: customerId || null,
-          roomNumber: roomNumber || null,
+          name: name || null,
+          roomId,
+          roomNumber: room.number,
           checkIn: new Date(checkIn),
           checkOut: checkOut ? new Date(checkOut) : null,
           adults: adults ? Number(adults) : 1,
           children: children ? Number(children) : 0,
           notes: notes || null,
+          agreedPrice: agreedPrice !== undefined && agreedPrice !== "" ? Number(agreedPrice) : null,
           status: checkOut ? "checked-out" : "active",
         },
       });
+
+      // Mark room as occupied
+      await prismaAny.room.update({
+        where: { id: roomId },
+        data: { status: "occupied" },
+      });
+
       return res.status(201).json({ guest });
     }
 
     case "PUT": {
-      const { guestId, checkOut, status, roomNumber, notes, adults, children } =
+      const { guestId, checkIn, checkOut, status, notes, adults, children, customerId, name, agreedPrice } =
         req.body;
       if (!guestId) return res.status(400).json({ error: "guestId required" });
 
-      const updated = await prisma.guest.update({
+      const guestRecord = await prismaAny.guest.findUnique({ where: { id: guestId } });
+      if (!guestRecord) return res.status(404).json({ error: "Guest not found" });
+
+      const updated = await prismaAny.guest.update({
         where: { id: guestId },
         data: {
+          ...(checkIn !== undefined && { checkIn: checkIn ? new Date(checkIn) : undefined }),
           ...(checkOut !== undefined && {
             checkOut: checkOut ? new Date(checkOut) : null,
           }),
           ...(status && { status }),
-          ...(roomNumber !== undefined && { roomNumber: roomNumber || null }),
           ...(notes !== undefined && { notes: notes || null }),
           ...(adults !== undefined && { adults: Number(adults) }),
           ...(children !== undefined && { children: Number(children) }),
+          ...(customerId !== undefined && { customerId: customerId || null }),
+          ...(name !== undefined && { name: name || null }),
+          ...(agreedPrice !== undefined && {
+            agreedPrice: agreedPrice !== "" && agreedPrice !== null ? Number(agreedPrice) : null,
+          }),
         },
       });
+
+      // If checking out and guest has a room, mark room as available
+      if (status === "checked-out" && guestRecord.roomId) {
+        await prismaAny.room.update({
+          where: { id: guestRecord.roomId },
+          data: { status: "available" },
+        });
+      }
+
       return res.status(200).json({ guest: updated });
     }
 
@@ -77,7 +115,15 @@ export default async function handler(
       if (!guestId || typeof guestId !== "string") {
         return res.status(400).json({ error: "guestId required" });
       }
-      await prisma.guest.delete({ where: { id: guestId } });
+      const toDelete = await prismaAny.guest.findUnique({ where: { id: guestId } });
+      await prismaAny.guest.delete({ where: { id: guestId } });
+      // Reset room to available if the deleted guest was still active
+      if (toDelete?.status === "active" && toDelete.roomId) {
+        await prismaAny.room.update({
+          where: { id: toDelete.roomId },
+          data: { status: "available" },
+        });
+      }
       return res.status(200).json({ success: true });
     }
 

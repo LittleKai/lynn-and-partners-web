@@ -38,7 +38,7 @@ export default async function handler(
       );
       if (!canManage) return res.status(403).json({ error: "Forbidden" });
 
-      const { customerId, notes, items } = req.body;
+      const { customerId, guestId, notes, items } = req.body;
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: "items are required" });
       }
@@ -89,6 +89,7 @@ export default async function handler(
         data: {
           locationId,
           customerId: customerId || null,
+          guestId: guestId || null,
           notes: notes || null,
           totalAmount,
           createdById: session.id,

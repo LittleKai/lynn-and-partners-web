@@ -18,49 +18,46 @@ export default async function handler(
     return res.status(400).json({ error: "Invalid location id" });
   }
 
-  // Documents tab is admin/superadmin only
-  if (session.role !== "superadmin" && session.role !== "admin") {
-    return res.status(403).json({ error: "Admin access required" });
-  }
-
   const canAccess = await hasLocationAccess(session, locationId);
   if (!canAccess) return res.status(403).json({ error: "Forbidden" });
 
   switch (req.method) {
     case "GET": {
-      const documents = await prisma.locationDocument.findMany({
+      const announcements = await prisma.locationAnnouncement.findMany({
         where: { locationId },
-        orderBy: { uploadedAt: "desc" },
+        orderBy: { createdAt: "desc" },
       });
-      return res.status(200).json({ documents });
+      return res.status(200).json({ announcements });
     }
 
     case "POST": {
-      const { name, url, resourceType, notes } = req.body as {
-        name: string;
-        url: string;
-        resourceType: string;
-        notes?: string;
-      };
-
-      if (!name || !url) {
-        return res.status(400).json({ error: "name and url are required" });
+      // Only admin/superadmin can create announcements
+      if (session.role !== "superadmin" && session.role !== "admin") {
+        return res.status(403).json({ error: "Admin access required" });
       }
 
-      const document = await prisma.locationDocument.create({
+      const { title, content, type } = req.body as {
+        title: string;
+        content: string;
+        type?: string;
+      };
+
+      if (!title?.trim() || !content?.trim()) {
+        return res.status(400).json({ error: "title and content are required" });
+      }
+
+      const announcement = await prisma.locationAnnouncement.create({
         data: {
           locationId,
-          name,
-          notes: notes || null,
-          url,
-          resourceType: resourceType || "raw",
-          uploadedById: session.id,
-          uploadedByName: session.name,
-          uploadedAt: new Date(),
+          title: title.trim(),
+          content: content.trim(),
+          type: type || "info",
+          createdById: session.id,
+          createdByName: session.name,
         },
       });
 
-      return res.status(201).json({ document });
+      return res.status(201).json({ announcement });
     }
 
     default:

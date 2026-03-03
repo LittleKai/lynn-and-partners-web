@@ -13,17 +13,17 @@ export default async function handler(
   const session = await getSessionServer(req, res);
   if (!session) return res.status(401).json({ error: "Unauthorized" });
 
-  const { id: locationId, docId } = req.query;
+  const { id: locationId, announcementId } = req.query;
   if (
     !locationId ||
     typeof locationId !== "string" ||
-    !docId ||
-    typeof docId !== "string"
+    !announcementId ||
+    typeof announcementId !== "string"
   ) {
     return res.status(400).json({ error: "Invalid parameters" });
   }
 
-  // Documents tab is admin/superadmin only
+  // Only admin/superadmin can modify announcements
   if (session.role !== "superadmin" && session.role !== "admin") {
     return res.status(403).json({ error: "Admin access required" });
   }
@@ -31,25 +31,32 @@ export default async function handler(
   const canAccess = await hasLocationAccess(session, locationId);
   if (!canAccess) return res.status(403).json({ error: "Forbidden" });
 
-  const doc = await prisma.locationDocument.findFirst({
-    where: { id: docId, locationId },
+  const item = await prisma.locationAnnouncement.findFirst({
+    where: { id: announcementId, locationId },
   });
-  if (!doc) return res.status(404).json({ error: "Document not found" });
+  if (!item) return res.status(404).json({ error: "Announcement not found" });
 
   if (req.method === "PUT") {
-    const { name, notes } = req.body as { name?: string; notes?: string };
-    const updated = await prisma.locationDocument.update({
-      where: { id: docId },
+    const { title, content, type } = req.body as {
+      title?: string;
+      content?: string;
+      type?: string;
+    };
+
+    const updated = await prisma.locationAnnouncement.update({
+      where: { id: announcementId },
       data: {
-        ...(name !== undefined ? { name: name.trim() || doc.name } : {}),
-        notes: notes !== undefined ? (notes.trim() || null) : doc.notes,
+        ...(title?.trim() ? { title: title.trim() } : {}),
+        ...(content?.trim() ? { content: content.trim() } : {}),
+        ...(type ? { type } : {}),
       },
     });
-    return res.status(200).json({ document: updated });
+
+    return res.status(200).json({ announcement: updated });
   }
 
   if (req.method === "DELETE") {
-    await prisma.locationDocument.delete({ where: { id: docId } });
+    await prisma.locationAnnouncement.delete({ where: { id: announcementId } });
     return res.status(200).json({ success: true });
   }
 

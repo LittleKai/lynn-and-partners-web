@@ -18,49 +18,48 @@ export default async function handler(
     return res.status(400).json({ error: "Invalid location id" });
   }
 
-  // Documents tab is admin/superadmin only
-  if (session.role !== "superadmin" && session.role !== "admin") {
-    return res.status(403).json({ error: "Admin access required" });
-  }
-
   const canAccess = await hasLocationAccess(session, locationId);
   if (!canAccess) return res.status(403).json({ error: "Forbidden" });
 
   switch (req.method) {
     case "GET": {
-      const documents = await prisma.locationDocument.findMany({
+      const rooms = await prisma.room.findMany({
         where: { locationId },
-        orderBy: { uploadedAt: "desc" },
+        orderBy: { number: "asc" },
       });
-      return res.status(200).json({ documents });
+      return res.status(200).json({ rooms });
     }
 
     case "POST": {
-      const { name, url, resourceType, notes } = req.body as {
-        name: string;
-        url: string;
-        resourceType: string;
+      const { number, pricePerNight, pricePerMonth, notes } = req.body as {
+        number: string;
+        pricePerNight?: number;
+        pricePerMonth?: number;
         notes?: string;
       };
-
-      if (!name || !url) {
-        return res.status(400).json({ error: "name and url are required" });
+      if (!number?.trim()) {
+        return res.status(400).json({ error: "Room number is required" });
       }
 
-      const document = await prisma.locationDocument.create({
+      // Prevent duplicate room numbers within the same location
+      const existing = await prisma.room.findFirst({
+        where: { locationId, number: number.trim() },
+      });
+      if (existing) {
+        return res.status(409).json({ error: "Room number already exists" });
+      }
+
+      const room = await prisma.room.create({
         data: {
           locationId,
-          name,
+          number: number.trim(),
+          status: "available",
+          pricePerNight: pricePerNight ? Number(pricePerNight) : null,
+          pricePerMonth: pricePerMonth ? Number(pricePerMonth) : null,
           notes: notes || null,
-          url,
-          resourceType: resourceType || "raw",
-          uploadedById: session.id,
-          uploadedByName: session.name,
-          uploadedAt: new Date(),
         },
       });
-
-      return res.status(201).json({ document });
+      return res.status(201).json({ room });
     }
 
     default:
