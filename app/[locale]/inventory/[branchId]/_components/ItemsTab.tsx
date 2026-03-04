@@ -33,7 +33,7 @@ import type {
 } from "../_types";
 
 interface ItemsTabProps {
-  locationId: string;
+  branchId: string;
   location: Location | null;
   products: Product[];
   setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
@@ -48,7 +48,7 @@ interface ItemsTabProps {
 }
 
 export function ItemsTab({
-  locationId,
+  branchId,
   location,
   products,
   setProducts,
@@ -211,7 +211,7 @@ export function ItemsTab({
     if (!newProduct.name.trim()) return;
     setIsProductSubmitting(true);
     try {
-      const res = await axiosInstance.post(`/locations/${locationId}/products`, {
+      const res = await axiosInstance.post(`/locations/${branchId}/products`, {
         name: newProduct.name.trim(),
         sku: newProduct.sku.trim(),
         unit: newProduct.unit.trim() || null,
@@ -241,7 +241,7 @@ export function ItemsTab({
   const handleActivateProduct = async (p: Product) => {
     setActivatingProductId(p.id);
     try {
-      await axiosInstance.put(`/locations/${locationId}/products/${p.id}`, {
+      await axiosInstance.put(`/locations/${branchId}/products/${p.id}`, {
         status: "available",
       });
       setProducts((prev) =>
@@ -260,7 +260,7 @@ export function ItemsTab({
     setIsDeactivating(true);
     try {
       await axiosInstance.put(
-        `/locations/${locationId}/products/${deactivatingProduct.id}`,
+        `/locations/${branchId}/products/${deactivatingProduct.id}`,
         { status: "inactive" }
       );
       setProducts((prev) =>
@@ -287,7 +287,7 @@ export function ItemsTab({
     try {
       const qty = Number(exportForm.quantity);
       const unitPrice = exportForm.unitPrice ? Number(exportForm.unitPrice) : undefined;
-      const res = await axiosInstance.post(`/locations/${locationId}/transactions`, {
+      const res = await axiosInstance.post(`/locations/${branchId}/transactions`, {
         type: "EXPORT",
         productId: exportForm.productId,
         quantity: qty,
@@ -317,7 +317,7 @@ export function ItemsTab({
   const handleDeleteProduct = async () => {
     if (!deletingProduct) return;
     try {
-      await axiosInstance.delete(`/locations/${locationId}/products/${deletingProduct.id}`);
+      await axiosInstance.delete(`/locations/${branchId}/products/${deletingProduct.id}`);
       setProducts((prev) => prev.filter((p) => p.id !== deletingProduct.id));
       setDeletingProduct(null);
       setDeleteProductConfirmName("");
@@ -332,7 +332,7 @@ export function ItemsTab({
     if (!newSupplier.name.trim()) return;
     setIsSupplierSubmitting(true);
     try {
-      const res = await axiosInstance.post(`/locations/${locationId}/suppliers`, {
+      const res = await axiosInstance.post(`/locations/${branchId}/suppliers`, {
         name: newSupplier.name.trim(),
         address: newSupplier.address || undefined,
         phone: newSupplier.phone || undefined,
@@ -354,7 +354,7 @@ export function ItemsTab({
     if (!editingSupplier || !editingSupplierData.name.trim()) return;
     setIsUpdatingSupplier(true);
     try {
-      const res = await axiosInstance.put(`/locations/${locationId}/suppliers`, {
+      const res = await axiosInstance.put(`/locations/${branchId}/suppliers`, {
         supplierId: editingSupplier.id,
         name: editingSupplierData.name.trim(),
         address: editingSupplierData.address || null,
@@ -377,7 +377,7 @@ export function ItemsTab({
   const handleDeleteSupplier = async (id: string) => {
     if (!confirm(t("confirmDelete"))) return;
     try {
-      await axiosInstance.delete(`/locations/${locationId}/suppliers?supplierId=${id}`);
+      await axiosInstance.delete(`/locations/${branchId}/suppliers?supplierId=${id}`);
       setSuppliers((prev) => prev.filter((s) => s.id !== id));
       toast({ title: t("supplierDeleted") });
     } catch {
@@ -1102,7 +1102,7 @@ export function ItemsTab({
       <ImportStockDialog
         open={showImportDialog}
         onClose={() => setShowImportDialog(false)}
-        locationId={locationId}
+        branchId={branchId}
         location={location}
         products={products}
         setProducts={setProducts}

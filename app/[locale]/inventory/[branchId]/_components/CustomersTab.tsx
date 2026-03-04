@@ -125,7 +125,7 @@ function CustomerList({
 }
 
 interface CustomersTabProps {
-  locationId: string;
+  branchId: string;
   location: Location | null;
   customers: Customer[];
   setCustomers: React.Dispatch<React.SetStateAction<Customer[]>>;
@@ -139,7 +139,7 @@ interface CustomersTabProps {
 }
 
 export function CustomersTab({
-  locationId,
+  branchId,
   location,
   customers,
   setCustomers,
@@ -172,6 +172,7 @@ export function CustomersTab({
   const [isGuestSubmitting, setIsGuestSubmitting] = useState(false);
   const [isUpdatingGuest, setIsUpdatingGuest] = useState(false);
   const [checkingOutId, setCheckingOutId] = useState<string | null>(null);
+  const [confirmCheckOutGuest, setConfirmCheckOutGuest] = useState<Guest | null>(null);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
   const [editingGuestData, setEditingGuestData] = useState({ name: "", customerId: "", checkIn: "", checkOut: "", adults: "1", children: "0", notes: "", agreedPrice: "" });
 
@@ -184,6 +185,8 @@ export function CustomersTab({
   const [editingRoomData, setEditingRoomData] = useState({ number: "", priceType: "night" as "night" | "month", price: "", notes: "" });
   const [roomStatusFilter, setRoomStatusFilter] = useState<"ALL" | "available" | "occupied" | "maintenance">("ALL");
   const [showCheckoutHistory, setShowCheckoutHistory] = useState(false);
+  const [historyYear, setHistoryYear] = useState(() => new Date().getFullYear());
+  const [historyMonth, setHistoryMonth] = useState(0); // 0 = all months
 
   // ── Computed ──────────────────────────────────────────────────────
   // Map roomId → active guest display name (kept for compatibility)
@@ -232,13 +235,13 @@ export function CustomersTab({
     );
     for (const r of orphaned) {
       axiosInstance
-        .put(`/locations/${locationId}/rooms/${r.id}`, { status: "available" })
+        .put(`/locations/${branchId}/rooms/${r.id}`, { status: "available" })
         .then(() =>
           setRooms((prev) => prev.map((room) => room.id === r.id ? { ...room, status: "available" } : room))
         )
         .catch(() => { /* silent */ });
     }
-  }, [guests, locationId, rooms, setRooms]);
+  }, [guests, branchId, rooms, setRooms]);
 
   // Min checkout date for Add Guest dialog (monthly rooms: min 1 month; others: min checkIn + 1 day)
   const newGuestMinCheckout = useMemo(() => {
@@ -275,12 +278,33 @@ export function CustomersTab({
     );
   }, [customers, customerSearch]);
 
+  // Years that appear in checkout history (for filter dropdown)
+  const historyYears = useMemo(() => {
+    const years = new Set<number>();
+    years.add(new Date().getFullYear());
+    for (const g of guestsCheckedOut) {
+      if (g.checkIn) years.add(new Date(g.checkIn).getFullYear());
+    }
+    return Array.from(years).sort((a, b) => b - a);
+  }, [guestsCheckedOut]);
+
+  // Checkout history filtered by selected year + month
+  const filteredCheckedOut = useMemo(() => {
+    return guestsCheckedOut.filter((g) => {
+      if (!g.checkIn) return false;
+      const d = new Date(g.checkIn);
+      if (d.getFullYear() !== historyYear) return false;
+      if (historyMonth === 0) return true;
+      return d.getMonth() + 1 === historyMonth;
+    });
+  }, [guestsCheckedOut, historyYear, historyMonth]);
+
   // ── Customer CRUD ─────────────────────────────────────────────────
   const handleAddCustomer = async () => {
     if (!newCustomer.name.trim()) return;
     setIsCustomerSubmitting(true);
     try {
-      const res = await axiosInstance.post(`/locations/${locationId}/customers`, newCustomer);
+      const res = await axiosInstance.post(`/locations/${branchId}/customers`, newCustomer);
       setCustomers((prev) => [...prev, res.data.customer].sort((a, b) => a.name.localeCompare(b.name)));
       setNewCustomer({ name: "", phone: "", email: "", address: "", notes: "" });
       setShowAddCustomer(false);
@@ -296,7 +320,7 @@ export function CustomersTab({
     if (!editingCustomer || !editingCustomerData.name.trim()) return;
     setIsUpdatingCustomer(true);
     try {
-      const res = await axiosInstance.put(`/locations/${locationId}/customers`, {
+      const res = await axiosInstance.put(`/locations/${branchId}/customers`, {
         customerId: editingCustomer.id,
         ...editingCustomerData,
       });
@@ -313,7 +337,7 @@ export function CustomersTab({
   const handleDeleteCustomer = async (id: string) => {
     if (!confirm(t("confirmDelete"))) return;
     try {
-      await axiosInstance.delete(`/locations/${locationId}/customers?customerId=${id}`);
+      await axiosInstance.delete(`/locations/${branchId}/customers?customerId=${id}`);
       setCustomers((prev) => prev.filter((c) => c.id !== id));
       toast({ title: t("customerDeleted") });
     } catch {
@@ -337,7 +361,7 @@ export function CustomersTab({
     if (!newGuest.name.trim() || !newGuest.checkIn || !newGuest.roomId) return;
     setIsGuestSubmitting(true);
     try {
-      const res = await axiosInstance.post(`/locations/${locationId}/guests`, {
+      const res = await axiosInstance.post(`/locations/${branchId}/guests`, {
         name: newGuest.name || undefined,
         customerId: newGuest.customerId || undefined,
         roomId: newGuest.roomId,
@@ -365,7 +389,7 @@ export function CustomersTab({
     setCheckingOutId(guest.id);
     const today = new Date().toISOString().split("T")[0];
     try {
-      const res = await axiosInstance.put(`/locations/${locationId}/guests`, {
+      const res = await axiosInstance.put(`/locations/${branchId}/guests`, {
         guestId: guest.id,
         checkOut: today,
         status: "checked-out",
@@ -386,7 +410,7 @@ export function CustomersTab({
     if (!confirm(t("confirmDelete"))) return;
     const guest = guests.find((g) => g.id === id);
     try {
-      await axiosInstance.delete(`/locations/${locationId}/guests?guestId=${id}`);
+      await axiosInstance.delete(`/locations/${branchId}/guests?guestId=${id}`);
       setGuests((prev) => prev.filter((g) => g.id !== id));
       // Reset room to available if the deleted guest was still active
       if (guest?.status === "active" && guest.roomId) {
@@ -404,7 +428,7 @@ export function CustomersTab({
     if (!editingGuest || !editingGuestData.name.trim() || !editingGuestData.checkIn) return;
     setIsUpdatingGuest(true);
     try {
-      const res = await axiosInstance.put(`/locations/${locationId}/guests`, {
+      const res = await axiosInstance.put(`/locations/${branchId}/guests`, {
         guestId: editingGuest.id,
         name: editingGuestData.name || null,
         customerId: editingGuestData.customerId || null,
@@ -431,7 +455,7 @@ export function CustomersTab({
     if (!newRoom.number.trim()) return;
     setIsRoomSubmitting(true);
     try {
-      const res = await axiosInstance.post(`/locations/${locationId}/rooms`, {
+      const res = await axiosInstance.post(`/locations/${branchId}/rooms`, {
         number: newRoom.number.trim(),
         pricePerNight: newRoom.priceType === "night" && newRoom.price ? Number(parseDots(newRoom.price)) : undefined,
         pricePerMonth: newRoom.priceType === "month" && newRoom.price ? Number(parseDots(newRoom.price)) : undefined,
@@ -454,7 +478,7 @@ export function CustomersTab({
     if (!editingRoom || !editingRoomData.number.trim()) return;
     setIsUpdatingRoom(true);
     try {
-      const res = await axiosInstance.put(`/locations/${locationId}/rooms/${editingRoom.id}`, {
+      const res = await axiosInstance.put(`/locations/${branchId}/rooms/${editingRoom.id}`, {
         number: editingRoomData.number.trim(),
         pricePerNight: editingRoomData.priceType === "night" ? (editingRoomData.price ? Number(parseDots(editingRoomData.price)) : null) : null,
         pricePerMonth: editingRoomData.priceType === "month" ? (editingRoomData.price ? Number(parseDots(editingRoomData.price)) : null) : null,
@@ -474,7 +498,7 @@ export function CustomersTab({
 
   const handleRoomStatusChange = async (roomId: string, status: string) => {
     try {
-      const res = await axiosInstance.put(`/locations/${locationId}/rooms/${roomId}`, { status });
+      const res = await axiosInstance.put(`/locations/${branchId}/rooms/${roomId}`, { status });
       setRooms((prev) => prev.map((r) => r.id === roomId ? res.data.room : r));
     } catch {
       toast({ title: t("roomAddFailed"), variant: "destructive" });
@@ -510,7 +534,7 @@ export function CustomersTab({
   const handleDeleteRoom = async (roomId: string) => {
     if (!confirm(t("confirmDelete"))) return;
     try {
-      await axiosInstance.delete(`/locations/${locationId}/rooms/${roomId}`);
+      await axiosInstance.delete(`/locations/${branchId}/rooms/${roomId}`);
       setRooms((prev) => prev.filter((r) => r.id !== roomId));
       toast({ title: t("roomDeleted") });
     } catch (err: unknown) {
@@ -532,9 +556,6 @@ export function CustomersTab({
 
           {/* ─── Guests sub-tab ─── */}
           <TabsContent value="guests" className="mt-4 space-y-5">
-            <div className="flex justify-end">
-              <Button onClick={() => setShowAddGuest(true)}>+ {t("newGuest")}</Button>
-            </div>
 
             {/* Section 1 — Currently Staying */}
             <div className="space-y-2">
@@ -579,7 +600,7 @@ export function CustomersTab({
                           {g.agreedPrice != null && (
                             <span className="ml-2 font-medium text-foreground">
                               · {g.agreedPrice.toLocaleString()} {location?.currency || "VND"}
-                              {priceType === "month" ? "/tháng" : "/đêm"}
+                              {priceType === "month" ? t("perMonth") : t("perNight")}
                             </span>
                           )}
                         </div>
@@ -605,7 +626,7 @@ export function CustomersTab({
                           <Button
                             size="sm" variant="outline"
                             className="h-7 px-2 text-xs flex-1 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400"
-                            onClick={() => handleGuestCheckOut(g)}
+                            onClick={() => setConfirmCheckOutGuest(g)}
                             disabled={checkingOutId === g.id}
                           >
                             {checkingOutId === g.id ? "..." : `✓ ${t("checkOut")}`}
@@ -636,67 +657,117 @@ export function CustomersTab({
                 </h3>
               </button>
               {showCheckoutHistory && (
-                guestsCheckedOut.length === 0 ? (
-                  <p className="text-sm text-muted-foreground pl-5 py-2">{t("noHistory")}</p>
-                ) : (
-                  <div className="rounded-xl border overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted">
-                        <tr>
-                          <th className="px-4 py-2.5 text-left font-medium text-xs">{t("guestName")}</th>
-                          <th className="px-4 py-2.5 text-left font-medium text-xs">{t("roomNumber")}</th>
-                          <th className="px-4 py-2.5 text-left font-medium text-xs">{t("checkIn")}</th>
-                          <th className="px-4 py-2.5 text-left font-medium text-xs">{t("checkOut")}</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-xs">{t("nights")}</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-xs">{t("agreedPrice")}</th>
-                          <th className="px-4 py-2.5"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {guestsCheckedOut.map((g) => (
-                          <tr key={g.id} className="border-t hover:bg-muted/40">
-                            <td className="px-4 py-2.5 font-medium text-xs">
-                              <div>{g.name || getCustomerName(g.customerId)}</div>
-                              {g.notes && <div className="text-muted-foreground italic">{g.notes}</div>}
-                            </td>
-                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{g.roomNumber || "—"}</td>
-                            <td className="px-4 py-2.5 text-xs whitespace-nowrap">{new Date(g.checkIn).toLocaleDateString()}</td>
-                            <td className="px-4 py-2.5 text-xs whitespace-nowrap">{g.checkOut ? new Date(g.checkOut).toLocaleDateString() : "—"}</td>
-                            <td className="px-4 py-2.5 text-xs text-right text-muted-foreground">{getDaysStaying(g.checkIn, g.checkOut)}</td>
-                            <td className="px-4 py-2.5 text-xs text-right font-mono text-muted-foreground">
-                              {g.agreedPrice != null ? g.agreedPrice.toLocaleString() : "—"}
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <div className="flex gap-1 justify-end">
-                                <Button
-                                  variant="ghost" size="sm" className="h-7 px-2"
-                                  onClick={() => {
-                                    setEditingGuest(g);
-                                    setEditingGuestData({
-                                      name: g.name || "",
-                                      customerId: g.customerId || "",
-                                      checkIn: g.checkIn.split("T")[0],
-                                      checkOut: g.checkOut ? g.checkOut.split("T")[0] : "",
-                                      adults: String(g.adults),
-                                      children: String(g.children),
-                                      notes: g.notes || "",
-                                      agreedPrice: g.agreedPrice !== null && g.agreedPrice !== undefined ? formatWithDots(String(g.agreedPrice)) : "",
-                                    });
-                                  }}
-                                >✏️</Button>
-                                <Button
-                                  variant="ghost" size="sm"
-                                  className="h-7 px-2 text-destructive hover:text-destructive"
-                                  onClick={() => handleDeleteGuest(g.id)}
-                                >🗑️</Button>
-                              </div>
-                            </td>
-                          </tr>
+                <>
+                  {/* Year / Month filter */}
+                  <div className="flex flex-wrap gap-2 pl-4 pb-1">
+                    <Select
+                      value={String(historyYear)}
+                      onValueChange={(v) => { setHistoryYear(Number(v)); setHistoryMonth(0); }}
+                    >
+                      <SelectTrigger className="h-7 w-24 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {historyYears.map((y) => (
+                          <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                         ))}
-                      </tbody>
-                    </table>
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={String(historyMonth)}
+                      onValueChange={(v) => setHistoryMonth(Number(v))}
+                    >
+                      <SelectTrigger className="h-7 w-36 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">{t("allMonths")}</SelectItem>
+                        {Array.from({ length: 12 }, (_, i) => (
+                          <SelectItem key={i + 1} value={String(i + 1)}>
+                            {new Date(2000, i, 1).toLocaleString("default", { month: "long" })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-xs text-muted-foreground self-center">
+                      {filteredCheckedOut.length} / {guestsCheckedOut.length}
+                    </span>
                   </div>
-                )
+
+                  {guestsCheckedOut.length === 0 ? (
+                    <p className="text-sm text-muted-foreground pl-5 py-2">{t("noHistory")}</p>
+                  ) : filteredCheckedOut.length === 0 ? (
+                    <p className="text-sm text-muted-foreground pl-5 py-2">{t("noResults")}</p>
+                  ) : (
+                    <div className="rounded-xl border overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted">
+                          <tr>
+                            <th className="px-4 py-2.5 text-left font-medium text-xs">{t("guestName")}</th>
+                            <th className="px-4 py-2.5 text-left font-medium text-xs">{t("roomNumber")}</th>
+                            <th className="px-4 py-2.5 text-left font-medium text-xs">{t("checkIn")}</th>
+                            <th className="px-4 py-2.5 text-left font-medium text-xs">{t("checkOut")}</th>
+                            <th className="px-4 py-2.5 text-right font-medium text-xs">{t("nights")}</th>
+                            <th className="px-4 py-2.5 text-right font-medium text-xs">{t("agreedPrice")}</th>
+                            <th className="px-4 py-2.5 text-right font-medium text-xs">{t("totalAmount")}</th>
+                            <th className="px-4 py-2.5"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredCheckedOut.map((g) => {
+                            const nights = getDaysStaying(g.checkIn, g.checkOut);
+                            const priceType = roomPriceTypeMap.get(g.roomId ?? "");
+                            const units = priceType === "month" ? Math.ceil(nights / 30) : nights;
+                            const totalAmount = g.agreedPrice != null ? g.agreedPrice * units : null;
+                            return (
+                              <tr key={g.id} className="border-t hover:bg-muted/40">
+                                <td className="px-4 py-2.5 font-medium text-xs">
+                                  <div>{g.name || getCustomerName(g.customerId)}</div>
+                                  {g.notes && <div className="text-muted-foreground italic">{g.notes}</div>}
+                                </td>
+                                <td className="px-4 py-2.5 text-xs text-muted-foreground">{g.roomNumber || "—"}</td>
+                                <td className="px-4 py-2.5 text-xs whitespace-nowrap">{new Date(g.checkIn).toLocaleDateString()}</td>
+                                <td className="px-4 py-2.5 text-xs whitespace-nowrap">{g.checkOut ? new Date(g.checkOut).toLocaleDateString() : "—"}</td>
+                                <td className="px-4 py-2.5 text-xs text-right text-muted-foreground">{nights}</td>
+                                <td className="px-4 py-2.5 text-xs text-right font-mono text-muted-foreground">
+                                  {g.agreedPrice != null ? g.agreedPrice.toLocaleString() : "—"}
+                                </td>
+                                <td className="px-4 py-2.5 text-xs text-right font-mono font-semibold">
+                                  {totalAmount != null ? totalAmount.toLocaleString() : "—"}
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <div className="flex gap-1 justify-end">
+                                    <Button
+                                      variant="ghost" size="sm" className="h-7 px-2"
+                                      onClick={() => {
+                                        setEditingGuest(g);
+                                        setEditingGuestData({
+                                          name: g.name || "",
+                                          customerId: g.customerId || "",
+                                          checkIn: g.checkIn.split("T")[0],
+                                          checkOut: g.checkOut ? g.checkOut.split("T")[0] : "",
+                                          adults: String(g.adults),
+                                          children: String(g.children),
+                                          notes: g.notes || "",
+                                          agreedPrice: g.agreedPrice !== null && g.agreedPrice !== undefined ? formatWithDots(String(g.agreedPrice)) : "",
+                                        });
+                                      }}
+                                    >✏️</Button>
+                                    <Button
+                                      variant="ghost" size="sm"
+                                      className="h-7 px-2 text-destructive hover:text-destructive"
+                                      onClick={() => handleDeleteGuest(g.id)}
+                                    >🗑️</Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </TabsContent>
@@ -759,8 +830,8 @@ export function CustomersTab({
 
                       {/* Price */}
                       <div className="text-xs text-muted-foreground font-mono space-y-0.5">
-                        {r.pricePerNight != null && <div>{r.pricePerNight.toLocaleString()}<span className="opacity-60">/đêm</span></div>}
-                        {r.pricePerMonth != null && <div>{r.pricePerMonth.toLocaleString()}<span className="opacity-60">/tháng</span></div>}
+                        {r.pricePerNight != null && <div>{r.pricePerNight.toLocaleString()}<span className="opacity-60">{t("perNight")}</span></div>}
+                        {r.pricePerMonth != null && <div>{r.pricePerMonth.toLocaleString()}<span className="opacity-60">{t("perMonth")}</span></div>}
                         {r.notes && <p className="italic truncate not-italic opacity-70 font-sans">{r.notes}</p>}
                       </div>
 
@@ -808,7 +879,7 @@ export function CustomersTab({
                             <Button
                               size="sm" variant="outline"
                               className="h-7 px-2 text-xs flex-1 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400"
-                              onClick={() => handleGuestCheckOut(activeGuest)}
+                              onClick={() => setConfirmCheckOutGuest(activeGuest)}
                               disabled={checkingOutId === activeGuest.id}
                             >
                               {checkingOutId === activeGuest.id ? "..." : `✓ ${t("checkOut")}`}
@@ -963,8 +1034,8 @@ export function CustomersTab({
                   {availableRooms.map((r) => (
                     <SelectItem key={r.id} value={r.id}>
                       {t("room")} {r.number}
-                      {r.pricePerNight ? ` — ${r.pricePerNight.toLocaleString()}/đêm` : ""}
-                      {r.pricePerMonth ? ` — ${r.pricePerMonth.toLocaleString()}/tháng` : ""}
+                      {r.pricePerNight ? ` — ${r.pricePerNight.toLocaleString()}${t("perNight")}` : ""}
+                      {r.pricePerMonth ? ` — ${r.pricePerMonth.toLocaleString()}${t("perMonth")}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -979,7 +1050,7 @@ export function CustomersTab({
                 {t("agreedPrice")} ({location?.currency || "VND"})
                 {newGuest.roomId && (
                   <span className="text-muted-foreground ml-1">
-                    {roomPriceTypeMap.get(newGuest.roomId) === "month" ? "/tháng" : "/đêm"}
+                    {roomPriceTypeMap.get(newGuest.roomId) === "month" ? t("perMonth") : t("perNight")}
                   </span>
                 )}
               </label>
@@ -1072,7 +1143,7 @@ export function CustomersTab({
                 {t("agreedPrice")} ({location?.currency || "VND"})
                 {editingGuest?.roomId && (
                   <span className="text-muted-foreground ml-1">
-                    {roomPriceTypeMap.get(editingGuest.roomId) === "month" ? "/tháng" : "/đêm"}
+                    {roomPriceTypeMap.get(editingGuest.roomId) === "month" ? t("perMonth") : t("perNight")}
                   </span>
                 )}
               </label>
@@ -1180,10 +1251,72 @@ export function CustomersTab({
               value={editingRoomData.notes}
               onChange={(e) => setEditingRoomData((f) => ({ ...f, notes: e.target.value }))}
             />
-            <div className="flex gap-2 justify-end pt-1">
-              <Button variant="outline" onClick={() => setEditingRoom(null)} disabled={isUpdatingRoom}>✕</Button>
-              <Button onClick={handleUpdateRoom} disabled={isUpdatingRoom || !editingRoomData.number.trim()}>
-                {isUpdatingRoom ? t("submitting") : t("saveChanges")}
+            <div className="flex items-center gap-2 pt-1">
+              {editingRoom?.status === "available" && (
+                <Button
+                  variant="outline"
+                  className="text-slate-600 border-slate-300 hover:bg-slate-50 dark:text-slate-400 dark:border-slate-600"
+                  onClick={() => { handleRoomStatusChange(editingRoom.id, "maintenance"); setEditingRoom(null); }}
+                  disabled={isUpdatingRoom}
+                >
+                  {t("setMaintenance")}
+                </Button>
+              )}
+              {editingRoom?.status === "maintenance" && (
+                <Button
+                  variant="outline"
+                  onClick={() => { handleRoomStatusChange(editingRoom.id, "available"); setEditingRoom(null); }}
+                  disabled={isUpdatingRoom}
+                >
+                  {t("markAvailable")}
+                </Button>
+              )}
+              <div className="flex gap-2 ml-auto">
+                <Button variant="outline" onClick={() => setEditingRoom(null)} disabled={isUpdatingRoom}>✕</Button>
+                <Button onClick={handleUpdateRoom} disabled={isUpdatingRoom || !editingRoomData.number.trim()}>
+                  {isUpdatingRoom ? t("submitting") : t("saveChanges")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Confirm Check-Out Dialog ── */}
+      <Dialog open={!!confirmCheckOutGuest} onOpenChange={(open) => { if (!open) setConfirmCheckOutGuest(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>✓ {t("checkOut")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-1">
+            <p className="text-sm text-muted-foreground">
+              {t("confirmCheckout")}{" "}
+              <span className="font-semibold text-foreground">
+                {confirmCheckOutGuest?.name || getCustomerName(confirmCheckOutGuest?.customerId ?? null)}
+              </span>
+              {confirmCheckOutGuest?.roomNumber && (
+                <span> — {t("room")} {confirmCheckOutGuest.roomNumber}</span>
+              )}
+              ?
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmCheckOutGuest(null)}
+                disabled={checkingOutId === confirmCheckOutGuest?.id}
+              >
+                {t("cancel")}
+              </Button>
+              <Button
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+                disabled={checkingOutId === confirmCheckOutGuest?.id}
+                onClick={async () => {
+                  if (!confirmCheckOutGuest) return;
+                  await handleGuestCheckOut(confirmCheckOutGuest);
+                  setConfirmCheckOutGuest(null);
+                }}
+              >
+                {checkingOutId === confirmCheckOutGuest?.id ? "..." : `✓ ${t("checkOut")}`}
               </Button>
             </div>
           </div>

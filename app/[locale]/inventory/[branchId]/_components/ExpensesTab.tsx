@@ -8,6 +8,7 @@ import { AttachmentSlots } from "@/components/ui/attachment-slots";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { Paperclip } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,14 +25,14 @@ import {
 import type { Location, Expense } from "../_types";
 
 interface ExpensesTabProps {
-  locationId: string;
+  branchId: string;
   location: Location | null;
   expenses: Expense[];
   setExpenses: React.Dispatch<React.SetStateAction<Expense[]>>;
 }
 
 export function ExpensesTab({
-  locationId,
+  branchId,
   location,
   expenses,
   setExpenses,
@@ -54,6 +55,7 @@ export function ExpensesTab({
   const [expenseFiles, setExpenseFiles] = useState<(File | null)[]>(Array(5).fill(null));
   const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
   const [expensePreviewUrl, setExpensePreviewUrl] = useState<string | null>(null);
+  const [viewingAttachments, setViewingAttachments] = useState<Expense | null>(null);
 
   // ── Computed ──────────────────────────────────────────────────────
   const expenseTypes = useMemo(
@@ -127,7 +129,7 @@ export function ExpensesTab({
           else fileUrls.push(r.data.url);
         } catch { /* continue */ }
       }
-      await axiosInstance.post(`/locations/${locationId}/expenses`, {
+      await axiosInstance.post(`/locations/${branchId}/expenses`, {
         type: expenseForm.type,
         amount: Number(parseDots(expenseForm.amount)),
         currency: expenseForm.currency,
@@ -139,7 +141,7 @@ export function ExpensesTab({
       toast({ title: t("expenseAdded") });
       setShowExpenseDialog(false);
       const expRes = await axiosInstance
-        .get(`/locations/${locationId}/expenses`)
+        .get(`/locations/${branchId}/expenses`)
         .catch(() => null);
       if (expRes) setExpenses(expRes.data.expenses);
     } catch (err: unknown) {
@@ -236,10 +238,13 @@ export function ExpensesTab({
                   <th className="px-4 py-3 text-right font-medium">{t("amount")}</th>
                   <th className="px-4 py-3 text-left font-medium">{t("description")}</th>
                   <th className="px-4 py-3 text-left font-medium">{t("date")}</th>
+                  <th className="px-2 py-3 w-10"></th>
                 </tr>
               </thead>
               <tbody>
-                {filteredExpenses.map((exp) => (
+                {filteredExpenses.map((exp) => {
+                  const attachCount = (exp.imageUrls?.length || 0) + (exp.fileUrls?.length || 0);
+                  return (
                   <tr key={exp.id} className="border-t hover:bg-muted/50">
                     <td className="px-4 py-3 capitalize">{exp.type}</td>
                     <td className="px-4 py-3 text-right font-mono">
@@ -251,13 +256,82 @@ export function ExpensesTab({
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                       {new Date(exp.createdAt).toLocaleDateString()}
                     </td>
+                    <td className="px-2 py-3">
+                      {attachCount > 0 ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                          onClick={() => setViewingAttachments(exp)}
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                          <span className="ml-1 text-xs tabular-nums">{attachCount}</span>
+                        </Button>
+                      ) : (
+                        <span className="block w-10" />
+                      )}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* ── Attachments Viewer Dialog ── */}
+      <Dialog open={!!viewingAttachments} onOpenChange={(open) => { if (!open) setViewingAttachments(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("attachments")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {viewingAttachments?.notes && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t("notes")}</p>
+                <p className="text-sm whitespace-pre-wrap">{viewingAttachments.notes}</p>
+              </div>
+            )}
+            {viewingAttachments?.imageUrls && viewingAttachments.imageUrls.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">{t("previewImage")}</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {viewingAttachments.imageUrls.map((url, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setExpensePreviewUrl(url)}
+                      className="aspect-square rounded-lg overflow-hidden border hover:opacity-80 transition-opacity"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {viewingAttachments?.fileUrls && viewingAttachments.fileUrls.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">{t("files")}</p>
+                <div className="space-y-1">
+                  {viewingAttachments.fileUrls.map((url, i) => (
+                    <a
+                      key={i}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{decodeURIComponent(url.split("/").pop() || `File ${i + 1}`)}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Add Expense Dialog ── */}
       <Dialog open={showExpenseDialog} onOpenChange={setShowExpenseDialog}>

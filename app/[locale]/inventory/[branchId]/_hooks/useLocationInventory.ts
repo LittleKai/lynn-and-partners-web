@@ -20,8 +20,8 @@ import type {
 } from "../_types";
 
 export function useLocationInventory() {
-  const params = useParams<{ locationId: string }>();
-  const locationId = params?.locationId || "";
+  const params = useParams<{ branchId: string }>();
+  const branchId = params?.branchId || "";
   const { isLoggedIn, isInitializing, user } = useAuth();
   const router = useRouter();
 
@@ -48,7 +48,7 @@ export function useLocationInventory() {
     }
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitializing, isLoggedIn, locationId]);
+  }, [isInitializing, isLoggedIn, branchId]);
 
   const loadData = async () => {
     try {
@@ -67,19 +67,19 @@ export function useLocationInventory() {
         roomsRes,
         announcementsRes,
       ] = await Promise.allSettled([
-        axiosInstance.get(`/admin/locations/${locationId}`),
-        axiosInstance.get(`/locations/${locationId}/products`),
-        axiosInstance.get(`/locations/${locationId}/transactions`),
-        axiosInstance.get(`/locations/${locationId}/expenses`),
-        axiosInstance.get(`/locations/${locationId}/categories`),
-        axiosInstance.get(`/locations/${locationId}/suppliers`),
+        axiosInstance.get(`/admin/locations/${branchId}`),
+        axiosInstance.get(`/locations/${branchId}/products`),
+        axiosInstance.get(`/locations/${branchId}/transactions`),
+        axiosInstance.get(`/locations/${branchId}/expenses`),
+        axiosInstance.get(`/locations/${branchId}/categories`),
+        axiosInstance.get(`/locations/${branchId}/suppliers`),
         axiosInstance.get("/users/me/locations"),
-        axiosInstance.get(`/locations/${locationId}/customers`),
-        axiosInstance.get(`/locations/${locationId}/guests`),
-        axiosInstance.get(`/locations/${locationId}/orders`),
-        axiosInstance.get(`/locations/${locationId}/documents`),
-        axiosInstance.get(`/locations/${locationId}/rooms`),
-        axiosInstance.get(`/locations/${locationId}/announcements`),
+        axiosInstance.get(`/locations/${branchId}/customers`),
+        axiosInstance.get(`/locations/${branchId}/guests`),
+        axiosInstance.get(`/locations/${branchId}/orders`),
+        axiosInstance.get(`/locations/${branchId}/documents`),
+        axiosInstance.get(`/locations/${branchId}/rooms`),
+        axiosInstance.get(`/locations/${branchId}/announcements`),
       ]);
 
       if (locRes.status === "fulfilled") setLocation(locRes.value.data.location);
@@ -97,7 +97,7 @@ export function useLocationInventory() {
         setAnnouncements(announcementsRes.value.data.announcements);
       if (meLocRes.status === "fulfilled") {
         const loc = meLocRes.value.data.locations?.find(
-          (l: { id: string; permissions?: string[] }) => l.id === locationId
+          (l: { id: string; permissions?: string[] }) => l.id === branchId
         );
         if (loc?.permissions) setLocationPermissions(loc.permissions);
       }
@@ -145,7 +145,7 @@ export function useLocationInventory() {
   };
 
   return {
-    locationId,
+    branchId,
     isLoggedIn,
     isInitializing,
     user,

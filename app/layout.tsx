@@ -22,6 +22,9 @@ const poppins = Poppins({
 export const metadata = {
   title: "Lynn & Partners",
   description: "Lynn & Partners — Professional business solutions with integrated inventory management.",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export default function RootLayout({

@@ -39,14 +39,14 @@ const DOC_TYPE_COLORS: Record<string, string> = {
 };
 
 interface DocumentsTabProps {
-  locationId: string;
+  branchId: string;
   location: Location | null;
   documents: LocationDoc[];
   setDocuments: React.Dispatch<React.SetStateAction<LocationDoc[]>>;
 }
 
 export function DocumentsTab({
-  locationId,
+  branchId,
   location,
   documents,
   setDocuments,
@@ -66,6 +66,8 @@ export function DocumentsTab({
   const [editDocName, setEditDocName] = useState("");
   const [editDocType, setEditDocType] = useState("GENERAL");
   const [editDocNote, setEditDocNote] = useState("");
+  const [editExistingUrl, setEditExistingUrl] = useState<string | null>(null);
+  const [editNewFiles, setEditNewFiles] = useState<(File | null)[]>(Array(4).fill(null));
   const [isSavingDoc, setIsSavingDoc] = useState(false);
 
   // ── Preview ────────────────────────────────────────────────────────
@@ -108,7 +110,7 @@ export function DocumentsTab({
         const r = await axiosInstance.post("/upload", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        await axiosInstance.post(`/locations/${locationId}/documents`, {
+        await axiosInstance.post(`/locations/${branchId}/documents`, {
           name: file.name,
           url: r.data.url,
           resourceType: r.data.resourceType || "raw",
@@ -118,7 +120,7 @@ export function DocumentsTab({
       }
       toast({ title: t("documentUploaded") });
       const docsRes = await axiosInstance
-        .get(`/locations/${locationId}/documents`)
+        .get(`/locations/${branchId}/documents`)
         .catch(() => null);
       if (docsRes) setDocuments(docsRes.data.documents);
       closeUploadDialog();
@@ -132,7 +134,7 @@ export function DocumentsTab({
   const handleDocDelete = async (docId: string) => {
     if (!confirm(t("confirmDelete"))) return;
     try {
-      await axiosInstance.delete(`/locations/${locationId}/documents/${docId}`);
+      await axiosInstance.delete(`/locations/${branchId}/documents/${docId}`);
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
       toast({ title: t("documentDeleted") });
     } catch {
@@ -145,19 +147,50 @@ export function DocumentsTab({
     setEditDocName(doc.name);
     setEditDocType(doc.type || "GENERAL");
     setEditDocNote(doc.notes || "");
+    setEditExistingUrl(doc.url);
+    setEditNewFiles(Array(4).fill(null));
   };
 
   const handleDocEditSave = async () => {
     if (!editingDoc) return;
     setIsSavingDoc(true);
     try {
-      const res = await axiosInstance.put(
-        `/locations/${locationId}/documents/${editingDoc.id}`,
-        { name: editDocName, notes: editDocNote, type: editDocType }
-      );
-      setDocuments((prev) =>
-        prev.map((d) => (d.id === editingDoc.id ? res.data.document : d))
-      );
+      const locName = location?.name || "general";
+
+      // 1. Existing file: update metadata or delete if removed
+      if (editExistingUrl !== null) {
+        const res = await axiosInstance.put(
+          `/locations/${branchId}/documents/${editingDoc.id}`,
+          { name: editDocName, notes: editDocNote, type: editDocType }
+        );
+        setDocuments((prev) =>
+          prev.map((d) => (d.id === editingDoc.id ? res.data.document : d))
+        );
+      } else {
+        await axiosInstance.delete(`/locations/${branchId}/documents/${editingDoc.id}`);
+        setDocuments((prev) => prev.filter((d) => d.id !== editingDoc.id));
+      }
+
+      // 2. Upload new files (if any)
+      const newFilesToUpload = editNewFiles.filter((f): f is File => f !== null);
+      for (const file of newFilesToUpload) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("locationName", locName);
+        fd.append("subfolder", "documents");
+        const r = await axiosInstance.post("/upload", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        const newDocRes = await axiosInstance.post(`/locations/${branchId}/documents`, {
+          name: file.name,
+          url: r.data.url,
+          resourceType: r.data.resourceType || "raw",
+          type: editDocType,
+          notes: editDocNote.trim() || undefined,
+        });
+        setDocuments((prev) => [newDocRes.data.document, ...prev]);
+      }
+
       toast({ title: t("documentUpdated") });
       setEditingDoc(null);
     } catch {
@@ -263,7 +296,7 @@ export function DocumentsTab({
                       <span>{new Date(doc.uploadedAt).toLocaleDateString()}</span>
                     </div>
                     {doc.notes && (
-                      <p className="text-xs text-muted-foreground mt-1 italic">{doc.notes}</p>
+                      <p className="text-xs text-muted-foreground mt-1 italic whitespace-pre-wrap">{doc.notes}</p>
                     )}
                   </div>
                   {isImage && (
@@ -371,18 +404,22 @@ export function DocumentsTab({
 
       {/* ── Document Edit Dialog ── */}
       <Dialog open={!!editingDoc} onOpenChange={(open) => { if (!open) setEditingDoc(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("editDocument")}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 mt-2">
-            <div>
-              <label className="text-sm font-medium mb-1 block">{t("fileName")}</label>
-              <Input
-                value={editDocName}
-                onChange={(e) => setEditDocName(e.target.value)}
-              />
-            </div>
+          <div className="space-y-4 mt-2">
+            {/* File name (only when existing file is kept) */}
+            {editExistingUrl !== null && (
+              <div>
+                <label className="text-sm font-medium mb-1 block">{t("fileName")}</label>
+                <Input
+                  value={editDocName}
+                  onChange={(e) => setEditDocName(e.target.value)}
+                />
+              </div>
+            )}
+            {/* Type */}
             <div>
               <label className="text-sm font-medium mb-1 block">{t("documentType")}</label>
               <Select value={editDocType} onValueChange={setEditDocType}>
@@ -396,6 +433,7 @@ export function DocumentsTab({
                 </SelectContent>
               </Select>
             </div>
+            {/* Note */}
             <div>
               <label className="text-sm font-medium mb-1 block">
                 {t("documentNote")}{" "}
@@ -405,15 +443,59 @@ export function DocumentsTab({
                 value={editDocNote}
                 onChange={(e) => setEditDocNote(e.target.value)}
                 placeholder={t("documentNotePlaceholder")}
-                rows={3}
+                rows={2}
               />
+            </div>
+            {/* Attachments */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">{t("attachments")}</label>
+              <div className="flex gap-2 flex-wrap">
+                {/* Existing file slot */}
+                {editExistingUrl !== null && (
+                  <div className="relative w-14 h-14 shrink-0">
+                    <div className="w-14 h-14 rounded-lg border overflow-hidden">
+                      {editingDoc?.resourceType === "image" ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={editExistingUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-muted gap-0.5 p-1">
+                          <span className="text-base leading-none">📄</span>
+                          <span className="text-[8px] text-muted-foreground text-center line-clamp-2 leading-tight break-all">
+                            {editDocName}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditExistingUrl(null)}
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive text-white text-[11px] font-bold flex items-center justify-center leading-none shadow hover:bg-destructive/80 transition-colors z-10"
+                      aria-label="Remove file"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+                {/* New file slots */}
+                <AttachmentSlots
+                  files={editNewFiles}
+                  onChange={setEditNewFiles}
+                  maxSlots={editExistingUrl !== null ? 4 : 5}
+                  accept="image/*,.pdf,.doc,.docx,.xlsx,.xls,.ppt,.pptx,.txt,.zip,.rar"
+                />
+              </div>
+              {editExistingUrl === null && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
+                  {t("existingFileRemoved")}
+                </p>
+              )}
             </div>
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="outline" onClick={() => setEditingDoc(null)} disabled={isSavingDoc}>
                 {t("cancel")}
               </Button>
               <Button onClick={handleDocEditSave} disabled={isSavingDoc}>
-                {isSavingDoc ? t("saving") : t("saveChanges")}
+                {isSavingDoc ? t("uploading") : t("saveChanges")}
               </Button>
             </div>
           </div>

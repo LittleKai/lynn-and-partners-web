@@ -32,7 +32,7 @@ import type {
 } from "../_types";
 
 interface SalesTabProps {
-  locationId: string;
+  branchId: string;
   location: Location | null;
   products: Product[];
   setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
@@ -49,7 +49,7 @@ interface SalesTabProps {
 }
 
 export function SalesTab({
-  locationId,
+  branchId,
   location,
   products,
   setProducts,
@@ -119,7 +119,7 @@ export function SalesTab({
     setIsDeletingOrder(true);
     try {
       const order = orders.find((o) => o.id === orderId);
-      await axiosInstance.delete(`/locations/${locationId}/orders?orderId=${orderId}`);
+      await axiosInstance.delete(`/locations/${branchId}/orders?orderId=${orderId}`);
       setOrders((prev) => prev.filter((o) => o.id !== orderId));
       if (order) {
         setProducts((prev) =>
@@ -144,7 +144,7 @@ export function SalesTab({
     if (salePriceVal === undefined) return;
     setSavingPriceId(productId);
     try {
-      await axiosInstance.put(`/locations/${locationId}/products/${productId}`, {
+      await axiosInstance.put(`/locations/${branchId}/products/${productId}`, {
         salePrice: Number(salePriceVal),
       });
       setProducts((prev) =>
@@ -183,7 +183,7 @@ export function SalesTab({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `orders-${locationId}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `orders-${branchId}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -426,7 +426,7 @@ export function SalesTab({
       <NewOrderDialog
         open={showNewOrder}
         onClose={() => setShowNewOrder(false)}
-        locationId={locationId}
+        branchId={branchId}
         isHotel={isHotel}
         products={products}
         customers={customers}
@@ -504,7 +504,7 @@ export function SalesTab({
                 </table>
               </div>
               <div className="flex justify-end pt-1">
-                <Link href={`/inventory/${locationId}/import`}>
+                <Link href={`/inventory/${branchId}/import`}>
                   <Button variant="outline" size="sm" className="gap-1.5">
                     ↩ {t("returnRefund")}
                   </Button>

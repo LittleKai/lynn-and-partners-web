@@ -24,7 +24,7 @@ import type { Product, Customer, Guest, SaleOrder, NewOrderRow } from "../../_ty
 interface NewOrderDialogProps {
   open: boolean;
   onClose: () => void;
-  locationId: string;
+  branchId: string;
   isHotel: boolean;
   products: Product[];
   customers: Customer[];
@@ -36,7 +36,7 @@ interface NewOrderDialogProps {
 export function NewOrderDialog({
   open,
   onClose,
-  locationId,
+  branchId,
   isHotel,
   products,
   customers,
@@ -86,7 +86,7 @@ export function NewOrderDialog({
     if (newOrderRows.some((r) => !r.productId || Number(r.quantity) < 1)) return;
     setIsOrderSubmitting(true);
     try {
-      const res = await axiosInstance.post(`/locations/${locationId}/orders`, {
+      const res = await axiosInstance.post(`/locations/${branchId}/orders`, {
         customerId: isHotel ? undefined : (newOrderCustomerId || undefined),
         guestId: isHotel ? (newOrderGuestId || undefined) : undefined,
         notes: newOrderNotes || undefined,

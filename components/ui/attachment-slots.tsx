@@ -11,6 +11,7 @@ interface AttachmentSlotsProps {
   onPreview?: (url: string) => void
   accept?: string
   className?: string
+  maxSlots?: number
 }
 
 export function AttachmentSlots({
@@ -19,6 +20,7 @@ export function AttachmentSlots({
   onPreview,
   accept = "image/*,.pdf,.doc,.docx,.xlsx",
   className,
+  maxSlots = MAX_SLOTS,
 }: AttachmentSlotsProps) {
   const handleFileChange = (i: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null
@@ -37,7 +39,7 @@ export function AttachmentSlots({
 
   return (
     <div className={cn("flex gap-2 flex-wrap", className)}>
-      {Array.from({ length: MAX_SLOTS }, (_, i) => {
+      {Array.from({ length: maxSlots }, (_, i) => {
         const file = files[i] ?? null
         const isImage = file?.type.startsWith("image/")
 

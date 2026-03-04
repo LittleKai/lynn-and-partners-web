@@ -26,7 +26,7 @@ import type { Location, Product, Supplier, Transaction, ImportItem } from "../..
 interface ImportStockDialogProps {
   open: boolean;
   onClose: () => void;
-  locationId: string;
+  branchId: string;
   location: Location | null;
   products: Product[];
   setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
@@ -38,7 +38,7 @@ interface ImportStockDialogProps {
 export function ImportStockDialog({
   open,
   onClose,
-  locationId,
+  branchId,
   location,
   products,
   setProducts,
@@ -137,7 +137,7 @@ export function ImportStockDialog({
     if (!importNewProductName.trim() || !importNewProductUnit.trim()) return;
     setIsCreatingImportProduct(true);
     try {
-      const res = await axiosInstance.post(`/locations/${locationId}/products`, {
+      const res = await axiosInstance.post(`/locations/${branchId}/products`, {
         name: importNewProductName.trim(),
         sku: importNewProductSku.trim() || undefined,
         unit: importNewProductUnit.trim(),
@@ -158,7 +158,7 @@ export function ImportStockDialog({
     if (!importNewSupplier.name.trim()) return;
     setIsCreatingImportSupplier(true);
     try {
-      const res = await axiosInstance.post(`/locations/${locationId}/suppliers`, {
+      const res = await axiosInstance.post(`/locations/${branchId}/suppliers`, {
         name: importNewSupplier.name.trim(),
         address: importNewSupplier.address.trim() || undefined,
         phone: importNewSupplier.phone.trim() || undefined,
@@ -208,7 +208,7 @@ export function ImportStockDialog({
         validItems.map((item) => {
           const qty = Number(parseDots(item.quantity));
           const unitPrice = Number(parseDots(item.unitPrice));
-          return axiosInstance.post(`/locations/${locationId}/transactions`, {
+          return axiosInstance.post(`/locations/${branchId}/transactions`, {
             productId: item.productId,
             type: "IMPORT",
             quantity: qty,
@@ -224,8 +224,8 @@ export function ImportStockDialog({
       toast({ title: t("importSuccess") });
       onClose();
       const [prodRes, txRes] = await Promise.allSettled([
-        axiosInstance.get(`/locations/${locationId}/products`),
-        axiosInstance.get(`/locations/${locationId}/transactions`),
+        axiosInstance.get(`/locations/${branchId}/products`),
+        axiosInstance.get(`/locations/${branchId}/transactions`),
       ]);
       if (prodRes.status === "fulfilled") setProducts(prodRes.value.data.products);
       if (txRes.status === "fulfilled") setTransactions(txRes.value.data.transactions);

@@ -24,14 +24,14 @@ import { Megaphone, Pencil } from "lucide-react";
 import type { Announcement } from "../_types";
 
 interface AnnouncementsTabProps {
-  locationId: string;
+  branchId: string;
   announcements: Announcement[];
   setAnnouncements: React.Dispatch<React.SetStateAction<Announcement[]>>;
   isAdmin: boolean;
 }
 
 export function AnnouncementsTab({
-  locationId,
+  branchId,
   announcements,
   setAnnouncements,
   isAdmin,
@@ -68,7 +68,7 @@ export function AnnouncementsTab({
     try {
       if (editingAnnouncement) {
         const res = await axiosInstance.put(
-          `/locations/${locationId}/announcements/${editingAnnouncement.id}`,
+          `/locations/${branchId}/announcements/${editingAnnouncement.id}`,
           announcementForm
         );
         setAnnouncements((prev) =>
@@ -77,7 +77,7 @@ export function AnnouncementsTab({
         toast({ title: t("announcementUpdated") });
       } else {
         const res = await axiosInstance.post(
-          `/locations/${locationId}/announcements`,
+          `/locations/${branchId}/announcements`,
           announcementForm
         );
         setAnnouncements((prev) => [res.data.announcement, ...prev]);
@@ -94,7 +94,7 @@ export function AnnouncementsTab({
   const handleAnnouncementDelete = async (annId: string) => {
     if (!confirm(t("confirmDelete"))) return;
     try {
-      await axiosInstance.delete(`/locations/${locationId}/announcements/${annId}`);
+      await axiosInstance.delete(`/locations/${branchId}/announcements/${annId}`);
       setAnnouncements((prev) => prev.filter((a) => a.id !== annId));
       toast({ title: t("announcementDeleted") });
     } catch {

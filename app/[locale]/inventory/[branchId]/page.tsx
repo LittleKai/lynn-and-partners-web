@@ -18,7 +18,7 @@ import { DocumentsTab } from "./_components/DocumentsTab";
 export default function LocationInventoryPage() {
   const t = useTranslations("inventory");
   const {
-    locationId,
+    branchId,
     isLoggedIn,
     isInitializing,
     location,
@@ -117,7 +117,7 @@ export default function LocationInventoryPage() {
           {/* ── Items Tab ── */}
           <TabsContent value="items" className="mt-4">
             <ItemsTab
-              locationId={locationId}
+              branchId={branchId}
               location={location}
               products={products}
               setProducts={setProducts}
@@ -135,7 +135,7 @@ export default function LocationInventoryPage() {
           {/* ── Sales Tab ── */}
           <TabsContent value="sales" className="mt-4">
             <SalesTab
-              locationId={locationId}
+              branchId={branchId}
               location={location}
               products={products}
               setProducts={setProducts}
@@ -155,7 +155,7 @@ export default function LocationInventoryPage() {
           {/* ── Expenses Tab ── */}
           <TabsContent value="expenses" className="mt-4">
             <ExpensesTab
-              locationId={locationId}
+              branchId={branchId}
               location={location}
               expenses={expenses}
               setExpenses={setExpenses}
@@ -165,7 +165,7 @@ export default function LocationInventoryPage() {
           {/* ── Customers Tab ── */}
           <TabsContent value="customers" className="mt-4">
             <CustomersTab
-              locationId={locationId}
+              branchId={branchId}
               location={location}
               customers={customers}
               setCustomers={setCustomers}
@@ -182,7 +182,7 @@ export default function LocationInventoryPage() {
           {/* ── Announcements Tab ── */}
           <TabsContent value="announcements" className="mt-4">
             <AnnouncementsTab
-              locationId={locationId}
+              branchId={branchId}
               announcements={announcements}
               setAnnouncements={setAnnouncements}
               isAdmin={isAdmin}
@@ -193,7 +193,7 @@ export default function LocationInventoryPage() {
           {isAdmin && (
             <TabsContent value="documents" className="mt-4">
               <DocumentsTab
-                locationId={locationId}
+                branchId={branchId}
                 location={location}
                 documents={documents}
                 setDocuments={setDocuments}

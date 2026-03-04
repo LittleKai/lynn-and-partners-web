@@ -48,8 +48,8 @@ interface ImportItem {
 }
 
 export default function ImportPage() {
-  const params = useParams<{ locationId: string }>();
-  const locationId = params?.locationId || "";
+  const params = useParams<{ branchId: string }>();
+  const branchId = params?.branchId || "";
   const { isLoggedIn, isInitializing } = useAuth();
   const router = useRouter();
   const t = useTranslations("inventory");
@@ -96,12 +96,12 @@ export default function ImportPage() {
       return;
     }
     loadData();
-  }, [isInitializing, isLoggedIn, locationId]);
+  }, [isInitializing, isLoggedIn, branchId]);
 
   const loadData = async () => {
     const [prodRes, supRes, locRes] = await Promise.allSettled([
-      axiosInstance.get(`/locations/${locationId}/products`),
-      axiosInstance.get(`/locations/${locationId}/suppliers`),
+      axiosInstance.get(`/locations/${branchId}/products`),
+      axiosInstance.get(`/locations/${branchId}/suppliers`),
       axiosInstance.get("/users/me/locations"),
     ]);
     if (prodRes.status === "fulfilled") setProducts(prodRes.value.data.products);
@@ -109,7 +109,7 @@ export default function ImportPage() {
     if (locRes.status === "fulfilled") {
       const loc = locRes.value.data.locations?.find(
         (l: { id: string; name: string; currency?: string }) =>
-          l.id === locationId
+          l.id === branchId
       );
       if (loc) {
         setLocationName(loc.name);
@@ -193,7 +193,7 @@ export default function ImportPage() {
     if (!newProductName.trim() || !newProductUnit.trim()) return;
     setIsCreatingProduct(true);
     try {
-      const res = await axiosInstance.post(`/locations/${locationId}/products`, {
+      const res = await axiosInstance.post(`/locations/${branchId}/products`, {
         name: newProductName.trim(),
         sku: newProductSku.trim() || undefined,
         unit: newProductUnit.trim(),
@@ -215,7 +215,7 @@ export default function ImportPage() {
     if (!newSupplier.name.trim()) return;
     setIsCreatingSupplier(true);
     try {
-      const res = await axiosInstance.post(`/locations/${locationId}/suppliers`, {
+      const res = await axiosInstance.post(`/locations/${branchId}/suppliers`, {
         name: newSupplier.name.trim(),
         address: newSupplier.address.trim() || undefined,
         phone: newSupplier.phone.trim() || undefined,
@@ -281,7 +281,7 @@ export default function ImportPage() {
         validItems.map((item) => {
           const qty = Number(parseDots(item.quantity));
           const unitPrice = Number(parseDots(item.unitPrice));
-          return axiosInstance.post(`/locations/${locationId}/transactions`, {
+          return axiosInstance.post(`/locations/${branchId}/transactions`, {
             productId: item.productId,
             type: "IMPORT",
             quantity: qty,
@@ -295,7 +295,7 @@ export default function ImportPage() {
         })
       );
       toast({ title: t("importSuccess") });
-      router.push(`/inventory/${locationId}`);
+      router.push(`/inventory/${branchId}`);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       toast({
@@ -315,7 +315,7 @@ export default function ImportPage() {
         {/* Back */}
         <div className="flex items-center gap-3">
           <Link
-            href={`/inventory/${locationId}`}
+            href={`/inventory/${branchId}`}
             className="text-muted-foreground hover:text-foreground text-sm"
           >
             ← {t("back")}

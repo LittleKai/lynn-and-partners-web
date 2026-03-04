@@ -36,8 +36,8 @@ interface ExportItem {
 }
 
 export default function ExportPage() {
-  const params = useParams<{ locationId: string }>();
-  const locationId = params?.locationId || "";
+  const params = useParams<{ branchId: string }>();
+  const branchId = params?.branchId || "";
   const searchParams = useSearchParams();
   const { isLoggedIn, isInitializing } = useAuth();
   const router = useRouter();
@@ -74,18 +74,18 @@ export default function ExportPage() {
       return;
     }
     loadData();
-  }, [isInitializing, isLoggedIn, locationId]);
+  }, [isInitializing, isLoggedIn, branchId]);
 
   const loadData = async () => {
     const [prodRes, locRes] = await Promise.allSettled([
-      axiosInstance.get(`/locations/${locationId}/products`),
+      axiosInstance.get(`/locations/${branchId}/products`),
       axiosInstance.get("/users/me/locations"),
     ]);
     if (prodRes.status === "fulfilled") setProducts(prodRes.value.data.products);
     if (locRes.status === "fulfilled") {
       const loc = locRes.value.data.locations?.find(
         (l: { id: string; name: string; currency?: string }) =>
-          l.id === locationId
+          l.id === branchId
       );
       if (loc) {
         setLocationName(loc.name);
@@ -206,7 +206,7 @@ export default function ExportPage() {
         validItems.map((item) => {
           const qty = Number(parseDots(item.quantity));
           const unitPrice = Number(parseDots(item.unitPrice));
-          return axiosInstance.post(`/locations/${locationId}/transactions`, {
+          return axiosInstance.post(`/locations/${branchId}/transactions`, {
             productId: item.productId,
             type: "EXPORT",
             quantity: qty,
@@ -219,7 +219,7 @@ export default function ExportPage() {
         })
       );
       toast({ title: t("exportSuccess") });
-      router.push(`/inventory/${locationId}`);
+      router.push(`/inventory/${branchId}`);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       toast({
@@ -239,7 +239,7 @@ export default function ExportPage() {
         {/* Back */}
         <div className="flex items-center gap-3">
           <Link
-            href={`/inventory/${locationId}`}
+            href={`/inventory/${branchId}`}
             className="text-muted-foreground hover:text-foreground text-sm"
           >
             ← {t("back")}

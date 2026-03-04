@@ -26,8 +26,8 @@ import {
 } from "@/components/ui/select";
 
 export default function NewExpensePage() {
-  const params = useParams<{ locationId: string }>();
-  const locationId = params?.locationId || "";
+  const params = useParams<{ branchId: string }>();
+  const branchId = params?.branchId || "";
   const router = useRouter();
   const t = useTranslations("inventory");
   const { toast } = useToast();
@@ -54,7 +54,7 @@ export default function NewExpensePage() {
       .get("/users/me/locations")
       .then((r) => {
         const loc = r.data.locations?.find(
-          (l: { id: string; name: string; currency?: string }) => l.id === locationId
+          (l: { id: string; name: string; currency?: string }) => l.id === branchId
         );
         if (loc) {
           setLocationName(loc.name);
@@ -62,7 +62,7 @@ export default function NewExpensePage() {
         }
       })
       .catch(() => {});
-  }, [locationId]);
+  }, [branchId]);
 
   const uploadFiles = async (locName: string): Promise<{ imageUrls: string[]; fileUrls: string[] }> => {
     const imageUrls: string[] = [];
@@ -94,7 +94,7 @@ export default function NewExpensePage() {
 
     try {
       const { imageUrls, fileUrls } = await uploadFiles(locationName);
-      await axiosInstance.post(`/locations/${locationId}/expenses`, {
+      await axiosInstance.post(`/locations/${branchId}/expenses`, {
         type: form.type,
         amount: Number(parseDots(form.amount)),
         currency: form.currency,
@@ -105,7 +105,7 @@ export default function NewExpensePage() {
       });
 
       toast({ title: t("expenseAdded") });
-      router.push(`/inventory/${locationId}?tab=expenses`);
+      router.push(`/inventory/${branchId}?tab=expenses`);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       toast({
@@ -124,7 +124,7 @@ export default function NewExpensePage() {
       <main className="container mx-auto px-6 py-8 max-w-lg space-y-6">
         <div className="flex items-center gap-3">
           <Link
-            href={`/inventory/${locationId}`}
+            href={`/inventory/${branchId}`}
             className="text-muted-foreground hover:text-foreground text-sm"
           >
             ← {t("back")}
