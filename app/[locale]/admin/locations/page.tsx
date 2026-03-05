@@ -23,16 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface Location {
-  id: string;
-  name: string;
-  type: string;
-  currency: string;
-  description: string | null;
-  address: string | null;
-  createdAt: string;
-}
-
 const LOCATION_TYPES = ["hotel", "apartment", "warehouse", "office", "store", "other"];
 
 const LOCATION_TYPE_ICONS: Record<string, string> = {
@@ -51,6 +41,85 @@ const emptyForm = {
   description: "",
   address: "",
 };
+
+// Defined OUTSIDE the page component to prevent focus-on-keypress bug
+// (inline component definitions get recreated on every render, causing React
+// to unmount/remount — which fires autoFocus again on every keystroke)
+function LocationFormFields({
+  form,
+  setForm,
+}: {
+  form: typeof emptyForm;
+  setForm: React.Dispatch<React.SetStateAction<typeof emptyForm>>;
+}) {
+  const t = useTranslations("admin");
+  return (
+    <div className="space-y-3 py-2">
+      <FloatLabelInput
+        label={`${t("locationName")} *`}
+        value={form.name}
+        onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+        autoFocus
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">{t("branchType")}</p>
+          <Select
+            value={form.type}
+            onValueChange={(v) => setForm((f) => ({ ...f, type: v }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t("selectType")} />
+            </SelectTrigger>
+            <SelectContent>
+              {LOCATION_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {LOCATION_TYPE_ICONS[type]} {t(`locationType.${type}`) || type}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">{t("currency")}</p>
+          <Select
+            value={form.currency}
+            onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t("defaultCurrency")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="VND">🇻🇳 VND — Việt Nam Đồng</SelectItem>
+              <SelectItem value="USD">🇺🇸 USD — US Dollar</SelectItem>
+              <SelectItem value="EUR">🇪🇺 EUR — Euro</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <FloatLabelInput
+        label={t("description")}
+        value={form.description}
+        onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+      />
+      <FloatLabelInput
+        label={t("address")}
+        value={form.address}
+        onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+      />
+    </div>
+  );
+}
+
+interface Location {
+  id: string;
+  name: string;
+  type: string;
+  currency: string;
+  description: string | null;
+  address: string | null;
+  createdAt: string;
+}
 
 export default function LocationsPage() {
   const t = useTranslations("admin");
@@ -166,64 +235,6 @@ export default function LocationsPage() {
       setIsDeleting(false);
     }
   };
-
-  // ── Shared form fields ───────────────────────────────────────────────
-  const LocationFormFields = ({
-    form,
-    setForm,
-  }: {
-    form: typeof emptyForm;
-    setForm: React.Dispatch<React.SetStateAction<typeof emptyForm>>;
-  }) => (
-    <div className="space-y-3 py-2">
-      <FloatLabelInput
-        label={`${t("locationName")} *`}
-        value={form.name}
-        onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-        autoFocus
-      />
-      <div className="grid grid-cols-2 gap-3">
-        <Select
-          value={form.type}
-          onValueChange={(v) => setForm((f) => ({ ...f, type: v }))}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={t("selectType")} />
-          </SelectTrigger>
-          <SelectContent>
-            {LOCATION_TYPES.map((type) => (
-              <SelectItem key={type} value={type}>
-                {LOCATION_TYPE_ICONS[type]} {t(`locationType.${type}`) || type}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={form.currency}
-          onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={t("defaultCurrency")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="VND">🇻🇳 VND</SelectItem>
-            <SelectItem value="USD">🇺🇸 USD</SelectItem>
-            <SelectItem value="EUR">🇪🇺 EUR</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <FloatLabelInput
-        label={t("description")}
-        value={form.description}
-        onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-      />
-      <FloatLabelInput
-        label={t("address")}
-        value={form.address}
-        onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-      />
-    </div>
-  );
 
   return (
     <div className="space-y-6">

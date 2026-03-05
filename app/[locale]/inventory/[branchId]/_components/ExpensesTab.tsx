@@ -52,7 +52,7 @@ export function ExpensesTab({
     description: "",
     notes: "",
   });
-  const [expenseFiles, setExpenseFiles] = useState<(File | null)[]>(Array(5).fill(null));
+  const [expenseFiles, setExpenseFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
   const [expensePreviewUrl, setExpensePreviewUrl] = useState<string | null>(null);
   const [viewingAttachments, setViewingAttachments] = useState<Expense | null>(null);
@@ -104,7 +104,7 @@ export function ExpensesTab({
       description: "",
       notes: "",
     });
-    setExpenseFiles(Array(5).fill(null));
+    setExpenseFiles(Array(10).fill(null));
     setExpensePreviewUrl(null);
     setShowExpenseDialog(true);
   };

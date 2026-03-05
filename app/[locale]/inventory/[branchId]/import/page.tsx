@@ -66,7 +66,7 @@ export default function ImportPage() {
   ]);
   const [supplierId, setSupplierId] = useState("none");
   const [notes, setNotes] = useState("");
-  const [files, setFiles] = useState<(File | null)[]>(Array(5).fill(null));
+  const [files, setFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Product picker dialog

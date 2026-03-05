@@ -54,7 +54,7 @@ export function ImportStockDialog({
   ]);
   const [importSupplierId, setImportSupplierId] = useState("none");
   const [importNotes, setImportNotes] = useState("");
-  const [importFiles, setImportFiles] = useState<(File | null)[]>(Array(5).fill(null));
+  const [importFiles, setImportFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isImportSubmitting, setIsImportSubmitting] = useState(false);
   const [importPickerOpen, setImportPickerOpen] = useState(false);
   const [importPickerItemUid, setImportPickerItemUid] = useState("");

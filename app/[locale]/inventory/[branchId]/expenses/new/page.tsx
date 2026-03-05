@@ -45,7 +45,7 @@ export default function NewExpensePage() {
     description: "",
     notes: "",
   });
-  const [files, setFiles] = useState<(File | null)[]>(Array(5).fill(null));
+  const [files, setFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 

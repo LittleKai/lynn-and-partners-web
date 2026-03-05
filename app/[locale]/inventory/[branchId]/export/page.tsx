@@ -56,7 +56,7 @@ export default function ExportPage() {
     { uid: "1", productId: preselectedProductId, quantity: "", unitPrice: "" },
   ]);
   const [notes, setNotes] = useState("");
-  const [files, setFiles] = useState<(File | null)[]>(Array(5).fill(null));
+  const [files, setFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Product picker dialog

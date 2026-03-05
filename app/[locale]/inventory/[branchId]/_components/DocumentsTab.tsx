@@ -58,7 +58,7 @@ export function DocumentsTab({
   const [showDocUploadDialog, setShowDocUploadDialog] = useState(false);
   const [docType, setDocType] = useState("GENERAL");
   const [docNote, setDocNote] = useState("");
-  const [docFiles, setDocFiles] = useState<(File | null)[]>(Array(5).fill(null));
+  const [docFiles, setDocFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isDocUploading, setIsDocUploading] = useState(false);
 
   // ── Edit dialog state ──────────────────────────────────────────────
@@ -84,7 +84,7 @@ export function DocumentsTab({
   const openUploadDialog = () => {
     setDocType("GENERAL");
     setDocNote("");
-    setDocFiles(Array(5).fill(null));
+    setDocFiles(Array(10).fill(null));
     setShowDocUploadDialog(true);
   };
 
@@ -92,7 +92,7 @@ export function DocumentsTab({
     setShowDocUploadDialog(false);
     setDocType("GENERAL");
     setDocNote("");
-    setDocFiles(Array(5).fill(null));
+    setDocFiles(Array(10).fill(null));
   };
 
   // ── Handlers ──────────────────────────────────────────────────────
