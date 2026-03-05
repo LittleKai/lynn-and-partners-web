@@ -132,7 +132,6 @@ export interface Expense {
   amount: number;
   currency: string;
   description: string | null;
-  notes: string | null;
   imageUrls: string[];
   fileUrls: string[];
   createdById: string;

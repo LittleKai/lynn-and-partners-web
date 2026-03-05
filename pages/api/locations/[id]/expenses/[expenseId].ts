@@ -46,7 +46,7 @@ export default async function handler(
         return res.status(403).json({ error: "Only admin or the creator can edit this expense" });
       }
 
-      const { type, amount, currency, description, notes, imageUrls, fileUrls } =
+      const { type, amount, currency, description, imageUrls, fileUrls } =
         req.body;
 
       const updated = await prisma.expense.update({
@@ -56,7 +56,6 @@ export default async function handler(
           ...(amount !== undefined && { amount: Number(amount) }),
           ...(currency && { currency }),
           ...(description !== undefined && { description }),
-          ...(notes !== undefined && { notes }),
           ...(imageUrls && { imageUrls }),
           ...(fileUrls && { fileUrls }),
         },

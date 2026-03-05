@@ -43,7 +43,6 @@ export default function NewExpensePage() {
     amount: "",
     currency: "VND",
     description: "",
-    notes: "",
   });
   const [files, setFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -99,7 +98,6 @@ export default function NewExpensePage() {
         amount: Number(parseDots(form.amount)),
         currency: form.currency,
         description: form.description || undefined,
-        notes: form.notes || undefined,
         imageUrls,
         fileUrls,
       });
@@ -187,15 +185,6 @@ export default function NewExpensePage() {
               onChange={(e) =>
                 setForm((f) => ({ ...f, description: e.target.value }))
               }
-              placeholder={t("optional")}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-1 block">{t("notes")}</label>
-            <Input
-              value={form.notes}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
               placeholder={t("optional")}
             />
           </div>

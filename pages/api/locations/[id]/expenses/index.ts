@@ -37,7 +37,7 @@ export default async function handler(
       );
       if (!canManage) return res.status(403).json({ error: "Forbidden" });
 
-      const { type, amount, currency, description, notes, imageUrls, fileUrls } =
+      const { type, amount, currency, description, imageUrls, fileUrls } =
         req.body;
 
       if (!type || amount === undefined) {
@@ -51,7 +51,6 @@ export default async function handler(
           amount: Number(amount),
           currency: currency || "VND",
           description: description || null,
-          notes: notes || null,
           imageUrls: imageUrls || [],
           fileUrls: fileUrls || [],
           createdById: session.id,

@@ -170,7 +170,6 @@ model Expense {
   amount        Float
   currency      String   @default("VND") // "VND" | "USD" | "EUR"
   description   String?
-  notes         String?
   imageUrls     String[]
   fileUrls      String[]
   createdById   String   @db.ObjectId

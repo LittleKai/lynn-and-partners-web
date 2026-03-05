@@ -59,7 +59,6 @@ export function ExpensesTab({
     amount: "",
     currency: "VND",
     description: "",
-    notes: "",
   });
   const [expenseFiles, setExpenseFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
@@ -71,7 +70,6 @@ export function ExpensesTab({
     amount: "",
     currency: "VND",
     description: "",
-    notes: "",
   });
   const [editExistingImageUrls, setEditExistingImageUrls] = useState<string[]>([]);
   const [editExistingFileUrls, setEditExistingFileUrls] = useState<string[]>([]);
@@ -125,7 +123,6 @@ export function ExpensesTab({
       amount: "",
       currency: location?.currency || "VND",
       description: "",
-      notes: "",
     });
     setExpenseFiles(Array(10).fill(null));
     setShowExpenseDialog(true);
@@ -156,7 +153,6 @@ export function ExpensesTab({
         amount: Number(parseDots(expenseForm.amount)),
         currency: expenseForm.currency,
         description: expenseForm.description || undefined,
-        notes: expenseForm.notes || undefined,
         imageUrls,
         fileUrls,
       });
@@ -184,7 +180,6 @@ export function ExpensesTab({
       amount: formatWithDots(String(exp.amount)),
       currency: exp.currency || "VND",
       description: exp.description || "",
-      notes: exp.notes || "",
     });
     setEditExistingImageUrls(exp.imageUrls || []);
     setEditExistingFileUrls(exp.fileUrls || []);
@@ -219,7 +214,6 @@ export function ExpensesTab({
           amount: Number(parseDots(editForm.amount)),
           currency: editForm.currency,
           description: editForm.description || null,
-          notes: editForm.notes || null,
           imageUrls: [...editExistingImageUrls, ...newImageUrls],
           fileUrls: [...editExistingFileUrls, ...newFileUrls],
         }
@@ -388,12 +382,6 @@ export function ExpensesTab({
             <DialogTitle>{t("attachments")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {viewingAttachments?.notes && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">{t("notes")}</p>
-                <p className="text-sm whitespace-pre-wrap">{viewingAttachments.notes}</p>
-              </div>
-            )}
             {viewingAttachments?.imageUrls && viewingAttachments.imageUrls.length > 0 && (
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">{t("previewImage")}</p>
@@ -492,14 +480,6 @@ export function ExpensesTab({
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">{t("notes")}</label>
-              <Input
-                value={expenseForm.notes}
-                onChange={(e) => setExpenseForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder={t("optional")}
-              />
-            </div>
-            <div>
               <label className="text-sm font-medium mb-2 block">{t("attachments")}</label>
               <AttachmentSlots
                 files={expenseFiles}
@@ -569,14 +549,6 @@ export function ExpensesTab({
               <Input
                 value={editForm.description}
                 onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder={t("optional")}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">{t("notes")}</label>
-              <Input
-                value={editForm.notes}
-                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
                 placeholder={t("optional")}
               />
             </div>
