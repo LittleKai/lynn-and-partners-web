@@ -561,5 +561,8 @@
   "appTable": {
     "products": "Sản phẩm",
     "productCount": "sản phẩm"
+  },
+  "common": {
+    "attachmentMaxError": "Chỉ được phép tối đa {max} file đính kèm"
   }
 }

@@ -561,5 +561,8 @@
   "appTable": {
     "products": "Products",
     "productCount": "products"
+  },
+  "common": {
+    "attachmentMaxError": "Maximum {max} attachments allowed"
   }
 }

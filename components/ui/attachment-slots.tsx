@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 const MAX_SLOTS = 5
 
@@ -22,6 +23,7 @@ export function AttachmentSlots({
   className,
   maxSlots = MAX_SLOTS,
 }: AttachmentSlotsProps) {
+  const t = useTranslations("common")
   const [error, setError] = React.useState<string | null>(null)
 
   const handleFileChange = (i: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,7 +33,7 @@ export function AttachmentSlots({
 
     const existingCount = files.filter(Boolean).length
     if (existingCount + selected.length > maxSlots) {
-      setError(`Chỉ được phép tối đa ${maxSlots} file`)
+      setError(t("attachmentMaxError", { max: maxSlots }))
       return
     }
 
