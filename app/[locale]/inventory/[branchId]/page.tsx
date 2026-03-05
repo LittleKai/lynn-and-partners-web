@@ -21,6 +21,7 @@ export default function LocationInventoryPage() {
     branchId,
     isLoggedIn,
     isInitializing,
+    user,
     location,
     products,
     setProducts,
