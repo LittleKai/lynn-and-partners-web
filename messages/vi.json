@@ -334,6 +334,7 @@
     "deleteItemWarning": "Thao tác này sẽ xóa vĩnh viễn mặt hàng khỏi kho.",
     "typeItemNameToConfirm": "Nhập tên mặt hàng để xác nhận:",
     "cancel": "Hủy",
+    "save": "Lưu",
     "delete": "Xóa",
     "importSuccess": "Nhập hàng thành công!",
     "importFailed": "Nhập hàng thất bại",

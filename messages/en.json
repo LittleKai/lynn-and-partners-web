@@ -334,6 +334,7 @@
     "deleteItemWarning": "This will permanently delete the item from inventory.",
     "typeItemNameToConfirm": "Type the item name to confirm:",
     "cancel": "Cancel",
+    "save": "Save",
     "delete": "Delete",
     "importSuccess": "Import recorded successfully!",
     "importFailed": "Import Failed",
