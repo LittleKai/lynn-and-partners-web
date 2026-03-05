@@ -26,7 +26,7 @@ export default function AppHeader() {
         title: t("logoutSuccess"),
         description: t("logoutSuccessDesc"),
       });
-      setTimeout(() => router.push("/inventory/login"), 1500);
+      setTimeout(() => router.push("/branch/login"), 1500);
     } catch {
       toast({
         title: t("logoutFailed"),
@@ -55,7 +55,7 @@ export default function AppHeader() {
         {/* ── Left: brand + nav ── */}
         <div className="flex items-center gap-1">
           {/* Brand mark */}
-          <Link href="/inventory" className="flex items-center gap-2.5 mr-2">
+          <Link href="/branch" className="flex items-center gap-2.5 mr-2">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
               <span className="text-primary-foreground text-xs font-bold tracking-tight">
                 L&P
@@ -82,7 +82,7 @@ export default function AppHeader() {
             </Link>
           )}
 
-          <Link href="/inventory">
+          <Link href="/branch">
             <Button
               variant="ghost"
               size="sm"

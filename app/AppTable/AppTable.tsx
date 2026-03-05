@@ -36,7 +36,7 @@ const AppTable = React.memo(() => {
 
   useEffect(() => {
     if (!isLoggedIn) {
-      router.push("/inventory/login");
+      router.push("/branch/login");
     } else {
       handleLoadProducts();
     }

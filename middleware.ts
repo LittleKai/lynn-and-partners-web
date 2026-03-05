@@ -20,22 +20,37 @@ export default function middleware(request: NextRequest) {
   if (isAdminRoute) {
     if (!hasValidToken) {
       const loginPath =
-        locale === "vi" ? "/vi/inventory/login" : "/inventory/login";
+        locale === "vi" ? "/vi/branch/login" : "/branch/login";
       const url = new URL(loginPath, request.url);
       url.searchParams.set("redirect", strippedPath);
       return NextResponse.redirect(url);
     }
   }
 
-  // Protect /inventory/* except login
-  const isProtected =
+  // Protect /inventory/* except login (backward compat redirect)
+  const isInventoryProtected =
     strippedPath.startsWith("/inventory") &&
     !strippedPath.startsWith("/inventory/login");
 
-  if (isProtected) {
+  if (isInventoryProtected) {
     if (!hasValidToken) {
       const loginPath =
-        locale === "vi" ? "/vi/inventory/login" : "/inventory/login";
+        locale === "vi" ? "/vi/branch/login" : "/branch/login";
+      const url = new URL(loginPath, request.url);
+      url.searchParams.set("redirect", strippedPath);
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Protect /branch/* routes (except login)
+  const isBranchProtected =
+    strippedPath.startsWith("/branch") &&
+    !strippedPath.startsWith("/branch/login");
+
+  if (isBranchProtected) {
+    if (!hasValidToken) {
+      const loginPath =
+        locale === "vi" ? "/vi/branch/login" : "/branch/login";
       const url = new URL(loginPath, request.url);
       url.searchParams.set("redirect", strippedPath);
       return NextResponse.redirect(url);
@@ -47,6 +62,6 @@ export default function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|public).*)",
+    "/((?!api|_next/static|_next/image|favicon\\.ico|.*\\.[^/]+$).*)",
   ],
 };

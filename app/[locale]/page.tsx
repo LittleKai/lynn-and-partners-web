@@ -17,7 +17,7 @@ export default function HomePage() {
         </div>
         <div className="flex items-center gap-3">
           <Link
-            href="/inventory"
+            href="/branch"
             className="text-sm font-medium hover:text-primary transition-colors"
           >
             {t("inventoryLink")}
@@ -32,7 +32,7 @@ export default function HomePage() {
         <h1 className="text-5xl font-bold mb-4">{t("title")}</h1>
         <p className="text-xl text-muted-foreground mb-8 max-w-2xl">{t("tagline")}</p>
         <Link
-          href="/inventory"
+          href="/branch"
           className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 transition-colors"
         >
           {t("inventoryLink")}

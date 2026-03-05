@@ -16,11 +16,11 @@ export default function AdminLayout({
   useEffect(() => {
     if (isInitializing) return;
     if (!isLoggedIn) {
-      router.push("/inventory/login");
+      router.push("/branch/login");
       return;
     }
     if (user && user.role !== "admin" && user.role !== "superadmin") {
-      router.push("/inventory");
+      router.push("/branch");
     }
   }, [isInitializing, isLoggedIn, user, router]);
 

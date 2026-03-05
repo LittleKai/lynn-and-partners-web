@@ -65,7 +65,7 @@ export const ProductTable = React.memo(function ProductTable({
 
   useEffect(() => {
     if (!isLoggedIn) {
-      router.replace("/inventory/login");
+      router.replace("/branch/login");
     }
   }, [isLoggedIn, router]);
 
