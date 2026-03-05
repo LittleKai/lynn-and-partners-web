@@ -1,8 +1,8 @@
 {
   "home": {
     "title": "Lynn & Partners",
-    "tagline": "Giải pháp kinh doanh chuyên nghiệp với hệ thống quản lý kho tích hợp cho doanh nghiệp hiện đại.",
-    "inventoryLink": "Quản lý kho"
+    "tagline": "Giải pháp kinh doanh chuyên nghiệp với hệ thống quản lý chi nhánh tích hợp cho doanh nghiệp hiện đại.",
+    "inventoryLink": "Quản lý chi nhánh"
   },
   "header": {
     "welcome": "Chào mừng",
@@ -30,7 +30,7 @@
   "admin": {
     "adminPanel": "Bảng quản trị",
     "dashboard": "Tổng quan",
-    "inventory": "Kho hàng",
+    "inventory": "Chi nhánh",
     "welcomeBack": "Chào mừng trở lại",
     "manageAdmins": "Quản lý Admin",
     "manageAdminsDesc": "Tạo và quản lý tài khoản quản trị viên.",
@@ -331,7 +331,7 @@
     "noSuppliers": "Chưa có nhà cung cấp nào.",
     "confirmDelete": "Bạn có chắc muốn xóa?",
     "confirmDeleteItem": "Xác nhận xóa",
-    "deleteItemWarning": "Thao tác này sẽ xóa vĩnh viễn mặt hàng khỏi kho.",
+    "deleteItemWarning": "Thao tác này sẽ xóa vĩnh viễn mặt hàng khỏi chi nhánh.",
     "typeItemNameToConfirm": "Nhập tên mặt hàng để xác nhận:",
     "cancel": "Hủy",
     "save": "Lưu",
@@ -502,11 +502,11 @@
     "supplier": "Nhà cung cấp",
     "selectSupplier": "Chọn nhà cung cấp",
     "createSuccess": "Tạo sản phẩm thành công!",
-    "createSuccessDesc": "đã được thêm vào kho.",
+    "createSuccessDesc": "đã được thêm vào chi nhánh.",
     "createFailed": "Tạo thất bại",
     "createFailedDesc": "Không thể tạo sản phẩm. Vui lòng thử lại.",
     "updateSuccess": "Cập nhật sản phẩm thành công!",
-    "updateSuccessDesc": "đã được cập nhật trong kho.",
+    "updateSuccessDesc": "đã được cập nhật trong chi nhánh.",
     "updateFailed": "Cập nhật thất bại",
     "updateFailedDesc": "Không thể cập nhật sản phẩm. Vui lòng thử lại.",
     "operationFailed": "Thao tác thất bại",
