@@ -73,6 +73,9 @@ export function ExpensesTab({
     description: "",
     notes: "",
   });
+  const [editExistingImageUrls, setEditExistingImageUrls] = useState<string[]>([]);
+  const [editExistingFileUrls, setEditExistingFileUrls] = useState<string[]>([]);
+  const [editNewFiles, setEditNewFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
   // ── Attachments viewer ─────────────────────────────────────────────
@@ -183,6 +186,9 @@ export function ExpensesTab({
       description: exp.description || "",
       notes: exp.notes || "",
     });
+    setEditExistingImageUrls(exp.imageUrls || []);
+    setEditExistingFileUrls(exp.fileUrls || []);
+    setEditNewFiles(Array(10).fill(null));
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -190,6 +196,22 @@ export function ExpensesTab({
     if (!editingExpense || !editForm.amount) return;
     setIsEditSubmitting(true);
     try {
+      const locName = location?.name || "general";
+      const newImageUrls: string[] = [];
+      const newFileUrls: string[] = [];
+      for (const file of editNewFiles.filter((f): f is File => f !== null)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("locationName", locName);
+        try {
+          const r = await axiosInstance.post("/upload", fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          if (r.data.resourceType === "image") newImageUrls.push(r.data.url);
+          else newFileUrls.push(r.data.url);
+        } catch { /* continue */ }
+      }
+
       const res = await axiosInstance.put(
         `/locations/${branchId}/expenses/${editingExpense.id}`,
         {
@@ -198,6 +220,8 @@ export function ExpensesTab({
           currency: editForm.currency,
           description: editForm.description || null,
           notes: editForm.notes || null,
+          imageUrls: [...editExistingImageUrls, ...newImageUrls],
+          fileUrls: [...editExistingFileUrls, ...newFileUrls],
         }
       );
       setExpenses((prev) =>
@@ -555,6 +579,63 @@ export function ExpensesTab({
                 onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
                 placeholder={t("optional")}
               />
+            </div>
+            {/* ── Attachments ── */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">{t("attachments")}</label>
+              <div className="flex gap-2 flex-wrap">
+                {/* Existing images */}
+                {editExistingImageUrls.map((url, i) => (
+                  <div key={`img-${i}`} className="relative w-14 h-14 shrink-0">
+                    <div className="w-14 h-14 rounded-lg border overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt=""
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-80"
+                        onClick={() => setExpensePreviewUrl(url)}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditExistingImageUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive text-white text-[11px] font-bold flex items-center justify-center leading-none shadow hover:bg-destructive/80 transition-colors z-10"
+                      aria-label="Remove"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {/* Existing files */}
+                {editExistingFileUrls.map((url, i) => (
+                  <div key={`file-${i}`} className="relative w-14 h-14 shrink-0">
+                    <div className="w-14 h-14 rounded-lg border overflow-hidden">
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-muted gap-0.5 p-1">
+                        <span className="text-base leading-none">📄</span>
+                        <span className="text-[8px] text-muted-foreground text-center line-clamp-2 leading-tight break-all">
+                          {decodeURIComponent(url.split("/").pop() || `File ${i + 1}`)}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditExistingFileUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive text-white text-[11px] font-bold flex items-center justify-center leading-none shadow hover:bg-destructive/80 transition-colors z-10"
+                      aria-label="Remove"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {/* New file slots */}
+                <AttachmentSlots
+                  files={editNewFiles}
+                  onChange={setEditNewFiles}
+                  onPreview={setExpensePreviewUrl}
+                  maxSlots={Math.max(1, 10 - editExistingImageUrls.length - editExistingFileUrls.length)}
+                  accept="image/*,.pdf,.doc,.docx"
+                />
+              </div>
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button
