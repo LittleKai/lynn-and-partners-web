@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
 import { AttachmentSlots } from "@/components/ui/attachment-slots";
+import { ImagePreviewDialog } from "@/components/ui/image-preview-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -331,21 +332,12 @@ export function DocumentsTab({
       </div>
 
       {/* ── Image Preview Dialog ── */}
-      {docPreviewUrl && (
-        <Dialog open={!!docPreviewUrl} onOpenChange={() => setDocPreviewUrl(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{t("previewImage")}</DialogTitle>
-            </DialogHeader>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={docPreviewUrl}
-              alt="preview"
-              className="w-full rounded-lg object-contain max-h-[70vh]"
-            />
-          </DialogContent>
-        </Dialog>
-      )}
+      <ImagePreviewDialog
+        images={docPreviewUrl ? [docPreviewUrl] : []}
+        initialIndex={0}
+        open={!!docPreviewUrl}
+        onClose={() => setDocPreviewUrl(null)}
+      />
 
       {/* ── Document Upload Dialog ── */}
       <Dialog open={showDocUploadDialog} onOpenChange={(open) => { if (!open) closeUploadDialog(); }}>

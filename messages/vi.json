@@ -563,6 +563,7 @@
     "productCount": "sản phẩm"
   },
   "common": {
-    "attachmentMaxError": "Chỉ được phép tối đa {max} file đính kèm"
+    "attachmentMaxError": "Chỉ được phép tối đa {max} file đính kèm",
+    "previewImage": "Xem ảnh"
   }
 }

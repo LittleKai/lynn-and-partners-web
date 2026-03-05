@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImportStockDialog } from "./dialogs/ImportStockDialog";
+import { ImagePreviewDialog } from "@/components/ui/image-preview-dialog";
 import type {
   Location,
   Product,
@@ -87,7 +88,8 @@ export function ItemsTab({
   // ── Product history dialog ─────────────────────────────────────────
   const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
   const [historyTypeFilter, setHistoryTypeFilter] = useState("ALL");
-  const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   // ── Delete product confirmation ────────────────────────────────────
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
@@ -783,21 +785,12 @@ export function ItemsTab({
       </Dialog>
 
       {/* ── Attachment Image Preview ── */}
-      {attachmentPreviewUrl && (
-        <Dialog open={!!attachmentPreviewUrl} onOpenChange={() => setAttachmentPreviewUrl(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{t("previewImage")}</DialogTitle>
-            </DialogHeader>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={attachmentPreviewUrl}
-              alt="preview"
-              className="w-full rounded-lg object-contain max-h-[70vh]"
-            />
-          </DialogContent>
-        </Dialog>
-      )}
+      <ImagePreviewDialog
+        images={previewImages}
+        initialIndex={previewIndex}
+        open={previewImages.length > 0}
+        onClose={() => setPreviewImages([])}
+      />
 
       {/* ── Delete Product Confirmation Dialog ── */}
       <Dialog
@@ -1054,7 +1047,7 @@ export function ItemsTab({
                         <td className="px-3 py-2">
                           <div className="flex flex-wrap gap-1 items-center">
                             {entry.imageUrls?.map((url, i) => (
-                              <button key={i} type="button" onClick={() => setAttachmentPreviewUrl(url)} className="shrink-0">
+                              <button key={i} type="button" onClick={() => { setPreviewImages(entry.imageUrls!); setPreviewIndex(i); }} className="shrink-0">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={url} alt="" className="h-8 w-8 object-cover rounded border hover:opacity-80 transition-opacity" />
                               </button>

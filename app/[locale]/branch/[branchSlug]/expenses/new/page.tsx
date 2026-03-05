@@ -9,12 +9,6 @@ import { formatWithDots, parseDots } from "@/utils/formatNumber";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AttachmentSlots } from "@/components/ui/attachment-slots";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import AppHeader from "@/app/AppHeader/AppHeader";
@@ -47,7 +41,6 @@ export default function NewExpensePage() {
     description: "",
   });
   const [files, setFiles] = useState<(File | null)[]>(Array(10).fill(null));
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -198,7 +191,6 @@ export default function NewExpensePage() {
             <AttachmentSlots
               files={files}
               onChange={setFiles}
-              onPreview={setPreviewUrl}
               accept="image/*,.pdf,.doc,.docx"
               maxSlots={10}
             />
@@ -210,22 +202,6 @@ export default function NewExpensePage() {
         </form>
       </main>
 
-      {/* Image Preview Dialog */}
-      {previewUrl && (
-        <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{t("previewImage")}</DialogTitle>
-            </DialogHeader>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewUrl}
-              alt="preview"
-              className="w-full rounded-lg object-contain max-h-[70vh]"
-            />
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

@@ -3,13 +3,13 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
+import { ImagePreviewDialog } from "@/components/ui/image-preview-dialog"
 
 const MAX_SLOTS = 5
 
 interface AttachmentSlotsProps {
   files: (File | null)[]
   onChange: (files: (File | null)[]) => void
-  onPreview?: (url: string) => void
   accept?: string
   className?: string
   maxSlots?: number
@@ -18,13 +18,28 @@ interface AttachmentSlotsProps {
 export function AttachmentSlots({
   files,
   onChange,
-  onPreview,
   accept = "image/*,.pdf,.doc,.docx,.xlsx",
   className,
   maxSlots = MAX_SLOTS,
 }: AttachmentSlotsProps) {
   const t = useTranslations("common")
   const [error, setError] = React.useState<string | null>(null)
+  const [previewIndex, setPreviewIndex] = React.useState<number | null>(null)
+
+  // Collect only image entries for navigation
+  const imageEntries = React.useMemo(
+    () =>
+      files
+        .map((f, slotIndex) => ({ f, slotIndex }))
+        .filter((x): x is { f: File; slotIndex: number } =>
+          x.f !== null && x.f.type.startsWith("image/")
+        ),
+    [files]
+  )
+  const imageUrls = React.useMemo(
+    () => imageEntries.map(({ f }) => URL.createObjectURL(f)),
+    [imageEntries]
+  )
 
   const handleFileChange = (i: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? [])
@@ -76,11 +91,12 @@ export function AttachmentSlots({
                 <div
                   className={cn(
                     "w-14 h-14 rounded-lg border overflow-hidden",
-                    isImage && onPreview ? "cursor-pointer" : "cursor-default"
+                    isImage ? "cursor-pointer" : "cursor-default"
                   )}
                   onClick={() => {
-                    if (isImage && onPreview) {
-                      onPreview(URL.createObjectURL(file))
+                    if (isImage) {
+                      const imgIdx = imageEntries.findIndex((e) => e.slotIndex === i)
+                      if (imgIdx !== -1) setPreviewIndex(imgIdx)
                     }
                   }}
                 >
@@ -132,9 +148,15 @@ export function AttachmentSlots({
           )
         })}
       </div>
-      {error && (
-        <p className="text-xs text-destructive">{error}</p>
-      )}
+
+      {error && <p className="text-xs text-destructive">{error}</p>}
+
+      <ImagePreviewDialog
+        images={imageUrls}
+        initialIndex={previewIndex ?? 0}
+        open={previewIndex !== null}
+        onClose={() => setPreviewIndex(null)}
+      />
     </div>
   )
 }

@@ -88,8 +88,6 @@ export default function ImportPage() {
   const [newSupplier, setNewSupplier] = useState({ name: "", address: "", phone: "", email: "" });
   const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
 
-  // Image preview dialog
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -545,7 +543,6 @@ export default function ImportPage() {
             <AttachmentSlots
               files={files}
               onChange={setFiles}
-              onPreview={setPreviewUrl}
             />
           </div>
 
@@ -736,22 +733,6 @@ export default function ImportPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Image Preview Dialog */}
-      {previewUrl && (
-        <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{t("previewImage")}</DialogTitle>
-            </DialogHeader>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewUrl}
-              alt="preview"
-              className="w-full rounded-lg object-contain max-h-[70vh]"
-            />
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

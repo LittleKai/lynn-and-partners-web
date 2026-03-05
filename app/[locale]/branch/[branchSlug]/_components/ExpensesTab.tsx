@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
 import { formatWithDots, parseDots } from "@/utils/formatNumber";
 import { AttachmentSlots } from "@/components/ui/attachment-slots";
+import { ImagePreviewDialog } from "@/components/ui/image-preview-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -77,8 +78,9 @@ export function ExpensesTab({
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
   // ── Attachments viewer ─────────────────────────────────────────────
-  const [expensePreviewUrl, setExpensePreviewUrl] = useState<string | null>(null);
   const [viewingAttachments, setViewingAttachments] = useState<Expense | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   // ── Computed ──────────────────────────────────────────────────────
   const expenseTypes = useMemo(
@@ -389,7 +391,7 @@ export function ExpensesTab({
                   {viewingAttachments.imageUrls.map((url, i) => (
                     <button
                       key={i}
-                      onClick={() => setExpensePreviewUrl(url)}
+                      onClick={() => { setPreviewImages(viewingAttachments.imageUrls!); setPreviewIndex(i); }}
                       className="aspect-square rounded-lg overflow-hidden border hover:opacity-80 transition-opacity"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -484,7 +486,6 @@ export function ExpensesTab({
               <AttachmentSlots
                 files={expenseFiles}
                 onChange={setExpenseFiles}
-                onPreview={setExpensePreviewUrl}
                 accept="image/*,.pdf,.doc,.docx"
                 maxSlots={10}
               />
@@ -566,7 +567,7 @@ export function ExpensesTab({
                         src={url}
                         alt=""
                         className="w-full h-full object-cover cursor-pointer hover:opacity-80"
-                        onClick={() => setExpensePreviewUrl(url)}
+                        onClick={() => { setPreviewImages(editExistingImageUrls); setPreviewIndex(i); }}
                       />
                     </div>
                     <button
@@ -604,7 +605,6 @@ export function ExpensesTab({
                 <AttachmentSlots
                   files={editNewFiles}
                   onChange={setEditNewFiles}
-                  onPreview={setExpensePreviewUrl}
                   maxSlots={Math.max(1, 10 - editExistingImageUrls.length - editExistingFileUrls.length)}
                   accept="image/*,.pdf,.doc,.docx"
                 />
@@ -628,21 +628,12 @@ export function ExpensesTab({
       </Dialog>
 
       {/* ── Image Preview ── */}
-      {expensePreviewUrl && (
-        <Dialog open={!!expensePreviewUrl} onOpenChange={() => setExpensePreviewUrl(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{t("previewImage")}</DialogTitle>
-            </DialogHeader>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={expensePreviewUrl}
-              alt="preview"
-              className="w-full rounded-lg object-contain max-h-[70vh]"
-            />
-          </DialogContent>
-        </Dialog>
-      )}
+      <ImagePreviewDialog
+        images={previewImages}
+        initialIndex={previewIndex}
+        open={previewImages.length > 0}
+        onClose={() => setPreviewImages([])}
+      />
     </>
   );
 }

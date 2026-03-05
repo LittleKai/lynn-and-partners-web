@@ -563,6 +563,7 @@
     "productCount": "products"
   },
   "common": {
-    "attachmentMaxError": "Maximum {max} attachments allowed"
+    "attachmentMaxError": "Maximum {max} attachments allowed",
+    "previewImage": "Preview"
   }
 }

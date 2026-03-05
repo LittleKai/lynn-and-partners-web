@@ -67,7 +67,6 @@ export function ImportStockDialog({
   const [importSupplierOpen, setImportSupplierOpen] = useState(false);
   const [importNewSupplier, setImportNewSupplier] = useState({ name: "", address: "", phone: "", email: "" });
   const [isCreatingImportSupplier, setIsCreatingImportSupplier] = useState(false);
-  const [importPreviewUrl, setImportPreviewUrl] = useState<string | null>(null);
 
   const importHasNegativeQty = importItems.some(
     (i) => i.quantity && Number(parseDots(i.quantity)) < 0
@@ -428,7 +427,6 @@ export function ImportStockDialog({
               <AttachmentSlots
                 files={importFiles}
                 onChange={setImportFiles}
-                onPreview={setImportPreviewUrl}
               />
             </div>
 
@@ -615,22 +613,6 @@ export function ImportStockDialog({
         </DialogContent>
       </Dialog>
 
-      {/* ── Import: Image Preview ── */}
-      {importPreviewUrl && (
-        <Dialog open={!!importPreviewUrl} onOpenChange={() => setImportPreviewUrl(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{t("previewImage")}</DialogTitle>
-            </DialogHeader>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={importPreviewUrl}
-              alt="preview"
-              className="w-full rounded-lg object-contain max-h-[70vh]"
-            />
-          </DialogContent>
-        </Dialog>
-      )}
     </>
   );
 }
