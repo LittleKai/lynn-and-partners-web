@@ -27,7 +27,6 @@ export default async function handler(
     locationId,
     PERMISSIONS.MANAGE_EXPENSES
   );
-  if (!canManage) return res.status(403).json({ error: "Forbidden" });
 
   const expense = await prisma.expense.findUnique({
     where: { id: expenseId },
@@ -36,9 +35,18 @@ export default async function handler(
     return res.status(404).json({ error: "Expense not found" });
   }
 
+  const isAdminRole = session.role === "superadmin" || session.role === "admin";
+  const isCreator = expense.createdById === session.id;
+
   switch (req.method) {
     case "PUT": {
-      const { type, amount, description, notes, imageUrls, fileUrls } =
+      // Only admin or the original creator (with MANAGE_EXPENSES) can edit
+      if (!canManage) return res.status(403).json({ error: "Forbidden" });
+      if (!isAdminRole && !isCreator) {
+        return res.status(403).json({ error: "Only admin or the creator can edit this expense" });
+      }
+
+      const { type, amount, currency, description, notes, imageUrls, fileUrls } =
         req.body;
 
       const updated = await prisma.expense.update({
@@ -46,6 +54,7 @@ export default async function handler(
         data: {
           ...(type && { type }),
           ...(amount !== undefined && { amount: Number(amount) }),
+          ...(currency && { currency }),
           ...(description !== undefined && { description }),
           ...(notes !== undefined && { notes }),
           ...(imageUrls && { imageUrls }),
@@ -56,6 +65,7 @@ export default async function handler(
     }
 
     case "DELETE": {
+      if (!canManage) return res.status(403).json({ error: "Forbidden" });
       await prisma.expense.delete({ where: { id: expenseId } });
       return res.status(200).json({ success: true });
     }

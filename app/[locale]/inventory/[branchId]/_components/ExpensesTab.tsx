@@ -8,12 +8,13 @@ import { AttachmentSlots } from "@/components/ui/attachment-slots";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Paperclip } from "lucide-react";
+import { Paperclip, Pencil } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -29,21 +30,29 @@ interface ExpensesTabProps {
   location: Location | null;
   expenses: Expense[];
   setExpenses: React.Dispatch<React.SetStateAction<Expense[]>>;
+  isAdmin: boolean;
+  currentUserId: string;
 }
+
+const EXPENSE_TYPES = ["RENT","UTILITIES","SALARY","MAINTENANCE","SUPPLIES","CLEANING","SECURITY","INSURANCE","REPAIR","OTHER"] as const;
 
 export function ExpensesTab({
   branchId,
   location,
   expenses,
   setExpenses,
+  isAdmin,
+  currentUserId,
 }: ExpensesTabProps) {
   const t = useTranslations("inventory");
   const { toast } = useToast();
 
-  // ── Local state ───────────────────────────────────────────────────
+  // ── Filter / sort state ────────────────────────────────────────────
   const [expTypeFilter, setExpTypeFilter] = useState("ALL");
   const [expMonthFilter, setExpMonthFilter] = useState(() => new Date().toISOString().slice(0, 7));
   const [expSort, setExpSort] = useState("date_desc");
+
+  // ── Add dialog ─────────────────────────────────────────────────────
   const [showExpenseDialog, setShowExpenseDialog] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
     type: "OTHER",
@@ -54,6 +63,19 @@ export function ExpensesTab({
   });
   const [expenseFiles, setExpenseFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
+
+  // ── Edit dialog ────────────────────────────────────────────────────
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editForm, setEditForm] = useState({
+    type: "OTHER",
+    amount: "",
+    currency: "VND",
+    description: "",
+    notes: "",
+  });
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+
+  // ── Attachments viewer ─────────────────────────────────────────────
   const [expensePreviewUrl, setExpensePreviewUrl] = useState<string | null>(null);
   const [viewingAttachments, setViewingAttachments] = useState<Expense | null>(null);
 
@@ -73,8 +95,7 @@ export function ExpensesTab({
     const [field, dir] = expSort.split("_");
     list = [...list].sort((a, b) => {
       if (field === "date") {
-        const diff =
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         return dir === "asc" ? diff : -diff;
       }
       if (field === "amount") {
@@ -85,7 +106,6 @@ export function ExpensesTab({
     return list;
   }, [expenses, expTypeFilter, expMonthFilter, expSort]);
 
-  // Total per currency for filtered expenses
   const filteredTotal = useMemo(() => {
     const totals: Record<string, number> = {};
     for (const exp of filteredExpenses) {
@@ -95,7 +115,7 @@ export function ExpensesTab({
     return totals;
   }, [filteredExpenses]);
 
-  // ── Handlers ──────────────────────────────────────────────────────
+  // ── Add expense ────────────────────────────────────────────────────
   const openExpenseDialog = () => {
     setExpenseForm({
       type: "OTHER",
@@ -105,7 +125,6 @@ export function ExpensesTab({
       notes: "",
     });
     setExpenseFiles(Array(10).fill(null));
-    setExpensePreviewUrl(null);
     setShowExpenseDialog(true);
   };
 
@@ -140,9 +159,7 @@ export function ExpensesTab({
       });
       toast({ title: t("expenseAdded") });
       setShowExpenseDialog(false);
-      const expRes = await axiosInstance
-        .get(`/locations/${branchId}/expenses`)
-        .catch(() => null);
+      const expRes = await axiosInstance.get(`/locations/${branchId}/expenses`).catch(() => null);
       if (expRes) setExpenses(expRes.data.expenses);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
@@ -155,6 +172,52 @@ export function ExpensesTab({
       setIsExpenseSubmitting(false);
     }
   };
+
+  // ── Edit expense ───────────────────────────────────────────────────
+  const openEditDialog = (exp: Expense) => {
+    setEditingExpense(exp);
+    setEditForm({
+      type: exp.type,
+      amount: formatWithDots(String(exp.amount)),
+      currency: exp.currency || "VND",
+      description: exp.description || "",
+      notes: exp.notes || "",
+    });
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExpense || !editForm.amount) return;
+    setIsEditSubmitting(true);
+    try {
+      const res = await axiosInstance.put(
+        `/locations/${branchId}/expenses/${editingExpense.id}`,
+        {
+          type: editForm.type,
+          amount: Number(parseDots(editForm.amount)),
+          currency: editForm.currency,
+          description: editForm.description || null,
+          notes: editForm.notes || null,
+        }
+      );
+      setExpenses((prev) =>
+        prev.map((e) => (e.id === editingExpense.id ? res.data.expense : e))
+      );
+      toast({ title: t("expenseUpdated") });
+      setEditingExpense(null);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      toast({
+        title: t("updateExpenseFailed"),
+        description: error.response?.data?.error,
+        variant: "destructive",
+      });
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  };
+
+  const canEdit = (exp: Expense) => isAdmin || exp.createdById === currentUserId;
 
   return (
     <>
@@ -237,6 +300,7 @@ export function ExpensesTab({
                   <th className="px-4 py-3 text-left font-medium">{t("type")}</th>
                   <th className="px-4 py-3 text-right font-medium">{t("amount")}</th>
                   <th className="px-4 py-3 text-left font-medium">{t("description")}</th>
+                  <th className="px-4 py-3 text-left font-medium">{t("createdBy")}</th>
                   <th className="px-4 py-3 text-left font-medium">{t("date")}</th>
                   <th className="px-2 py-3 w-10"></th>
                 </tr>
@@ -245,33 +309,46 @@ export function ExpensesTab({
                 {filteredExpenses.map((exp) => {
                   const attachCount = (exp.imageUrls?.length || 0) + (exp.fileUrls?.length || 0);
                   return (
-                  <tr key={exp.id} className="border-t hover:bg-muted/50">
-                    <td className="px-4 py-3 capitalize">{exp.type}</td>
-                    <td className="px-4 py-3 text-right font-mono">
-                      {exp.amount.toLocaleString()} {exp.currency || "VND"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {exp.description || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                      {new Date(exp.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-2 py-3">
-                      {attachCount > 0 ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-muted-foreground hover:text-foreground"
-                          onClick={() => setViewingAttachments(exp)}
-                        >
-                          <Paperclip className="h-3.5 w-3.5" />
-                          <span className="ml-1 text-xs tabular-nums">{attachCount}</span>
-                        </Button>
-                      ) : (
-                        <span className="block w-10" />
-                      )}
-                    </td>
-                  </tr>
+                    <tr key={exp.id} className="border-t hover:bg-muted/50">
+                      <td className="px-4 py-3 capitalize">{exp.type}</td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        {exp.amount.toLocaleString()} {exp.currency || "VND"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {exp.description || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                        {exp.createdByName || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                        {new Date(exp.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-2 py-3">
+                        <div className="flex items-center gap-1">
+                          {attachCount > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                              onClick={() => setViewingAttachments(exp)}
+                            >
+                              <Paperclip className="h-3.5 w-3.5" />
+                              <span className="ml-1 text-xs tabular-nums">{attachCount}</span>
+                            </Button>
+                          )}
+                          {canEdit(exp) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                              onClick={() => openEditDialog(exp)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -348,13 +425,11 @@ export function ExpensesTab({
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {["RENT","UTILITIES","SALARY","MAINTENANCE","SUPPLIES","CLEANING","SECURITY","INSURANCE","REPAIR","OTHER"].map(
-                    (type) => (
-                      <SelectItem key={type} value={type}>
-                        {t(`expense${type.charAt(0) + type.slice(1).toLowerCase()}` as Parameters<typeof t>[0])}
-                      </SelectItem>
-                    )
-                  )}
+                  {EXPENSE_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {t(`expense${type.charAt(0) + type.slice(1).toLowerCase()}` as Parameters<typeof t>[0])}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -416,7 +491,89 @@ export function ExpensesTab({
         </DialogContent>
       </Dialog>
 
-      {/* ── Expense: Image Preview ── */}
+      {/* ── Edit Expense Dialog ── */}
+      <Dialog open={!!editingExpense} onOpenChange={(open) => { if (!open) setEditingExpense(null); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("editExpense")}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("expenseType")}</label>
+              <Select
+                value={editForm.type}
+                onValueChange={(v) => setEditForm((f) => ({ ...f, type: v }))}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {EXPENSE_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {t(`expense${type.charAt(0) + type.slice(1).toLowerCase()}` as Parameters<typeof t>[0])}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("amount")}</label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={editForm.amount}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, amount: formatWithDots(e.target.value) }))
+                  }
+                  required
+                  className="flex-1"
+                />
+                <Select
+                  value={editForm.currency}
+                  onValueChange={(v) => setEditForm((f) => ({ ...f, currency: v }))}
+                >
+                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="VND">🇻🇳 VND</SelectItem>
+                    <SelectItem value="USD">🇺🇸 USD</SelectItem>
+                    <SelectItem value="EUR">🇪🇺 EUR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("description")}</label>
+              <Input
+                value={editForm.description}
+                onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder={t("optional")}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("notes")}</label>
+              <Input
+                value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder={t("optional")}
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingExpense(null)}
+                disabled={isEditSubmitting}
+              >
+                {t("cancel")}
+              </Button>
+              <Button type="submit" disabled={isEditSubmitting}>
+                {isEditSubmitting ? t("submitting") : t("save")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Image Preview ── */}
       {expensePreviewUrl && (
         <Dialog open={!!expensePreviewUrl} onOpenChange={() => setExpensePreviewUrl(null)}>
           <DialogContent className="max-w-2xl">

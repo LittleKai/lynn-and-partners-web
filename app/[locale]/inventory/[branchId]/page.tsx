@@ -159,6 +159,8 @@ export default function LocationInventoryPage() {
               location={location}
               expenses={expenses}
               setExpenses={setExpenses}
+              isAdmin={isAdmin}
+              currentUserId={user?.id || ""}
             />
           </TabsContent>
 

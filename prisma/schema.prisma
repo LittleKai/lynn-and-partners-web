@@ -164,17 +164,18 @@ model SaleOrder {
 }
 
 model Expense {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  locationId  String   @db.ObjectId
-  type        String   // "RENT" | "UTILITIES" | "SALARY" | "MAINTENANCE" | "SUPPLIES" | "CLEANING" | "SECURITY" | "INSURANCE" | "REPAIR" | "OTHER"
-  amount      Float
-  currency    String   @default("VND") // "VND" | "USD" | "EUR"
-  description String?
-  notes       String?
-  imageUrls   String[]
-  fileUrls    String[]
-  createdById String   @db.ObjectId
-  createdAt   DateTime @db.Date
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId    String   @db.ObjectId
+  type          String   // "RENT" | "UTILITIES" | "SALARY" | "MAINTENANCE" | "SUPPLIES" | "CLEANING" | "SECURITY" | "INSURANCE" | "REPAIR" | "OTHER"
+  amount        Float
+  currency      String   @default("VND") // "VND" | "USD" | "EUR"
+  description   String?
+  notes         String?
+  imageUrls     String[]
+  fileUrls      String[]
+  createdById   String   @db.ObjectId
+  createdByName String?
+  createdAt     DateTime @db.Date
 }
 
 model LocationDocument {

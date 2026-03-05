@@ -55,6 +55,7 @@ export default async function handler(
           imageUrls: imageUrls || [],
           fileUrls: fileUrls || [],
           createdById: session.id,
+          createdByName: session.name,
           createdAt: new Date(),
         },
       });

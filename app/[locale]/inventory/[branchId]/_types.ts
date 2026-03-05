@@ -135,6 +135,8 @@ export interface Expense {
   notes: string | null;
   imageUrls: string[];
   fileUrls: string[];
+  createdById: string;
+  createdByName: string | null;
   createdAt: string;
 }
 
