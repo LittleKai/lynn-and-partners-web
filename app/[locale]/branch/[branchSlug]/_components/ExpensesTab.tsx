@@ -486,6 +486,7 @@ export function ExpensesTab({
                 onChange={setExpenseFiles}
                 onPreview={setExpensePreviewUrl}
                 accept="image/*,.pdf,.doc,.docx"
+                maxSlots={10}
               />
             </div>
             <Button type="submit" className="w-full" disabled={isExpenseSubmitting}>

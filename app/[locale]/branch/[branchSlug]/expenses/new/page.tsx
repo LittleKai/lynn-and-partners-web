@@ -200,6 +200,7 @@ export default function NewExpensePage() {
               onChange={setFiles}
               onPreview={setPreviewUrl}
               accept="image/*,.pdf,.doc,.docx"
+              maxSlots={10}
             />
           </div>
 

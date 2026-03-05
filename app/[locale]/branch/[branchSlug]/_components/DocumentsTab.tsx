@@ -388,6 +388,7 @@ export function DocumentsTab({
                 files={docFiles}
                 onChange={setDocFiles}
                 accept="image/*,.pdf,.doc,.docx,.xlsx,.xls,.ppt,.pptx,.txt,.zip,.rar"
+                maxSlots={10}
               />
             </div>
             <div className="flex justify-end gap-2 pt-1">
@@ -480,7 +481,7 @@ export function DocumentsTab({
                 <AttachmentSlots
                   files={editNewFiles}
                   onChange={setEditNewFiles}
-                  maxSlots={editExistingUrl !== null ? 4 : 5}
+                  maxSlots={editExistingUrl !== null ? 9 : 10}
                   accept="image/*,.pdf,.doc,.docx,.xlsx,.xls,.ppt,.pptx,.txt,.zip,.rar"
                 />
               </div>
