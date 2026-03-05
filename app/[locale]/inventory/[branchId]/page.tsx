@@ -86,29 +86,29 @@ export default function LocationInventoryPage() {
 
         <Tabs defaultValue="items">
           {/* ── Main tabs ── */}
-          <TabsList className="flex w-full h-auto p-1 gap-1 overflow-x-auto">
-            <TabsTrigger value="items" className="flex flex-1 items-center justify-center gap-1.5 py-2 whitespace-nowrap">
+          <TabsList className="flex flex-wrap w-full h-auto p-1 gap-1">
+            <TabsTrigger value="items" className="flex flex-1 min-w-[calc(33.333%-4px)] items-center justify-center gap-1.5 py-2">
               <Package className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">{t("products")}</span>
             </TabsTrigger>
-            <TabsTrigger value="sales" className="flex flex-1 items-center justify-center gap-1.5 py-2 whitespace-nowrap">
+            <TabsTrigger value="sales" className="flex flex-1 min-w-[calc(33.333%-4px)] items-center justify-center gap-1.5 py-2">
               <ShoppingCart className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">{t("sales")}</span>
             </TabsTrigger>
-            <TabsTrigger value="expenses" className="flex flex-1 items-center justify-center gap-1.5 py-2 whitespace-nowrap">
+            <TabsTrigger value="expenses" className="flex flex-1 min-w-[calc(33.333%-4px)] items-center justify-center gap-1.5 py-2">
               <Wallet className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">{t("expenses")}</span>
             </TabsTrigger>
-            <TabsTrigger value="customers" className="flex flex-1 items-center justify-center gap-1.5 py-2 whitespace-nowrap">
+            <TabsTrigger value="customers" className="flex flex-1 min-w-[calc(33.333%-4px)] items-center justify-center gap-1.5 py-2">
               <Users className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">{t("customers")}</span>
             </TabsTrigger>
-            <TabsTrigger value="announcements" className="flex flex-1 items-center justify-center gap-1.5 py-2 whitespace-nowrap">
+            <TabsTrigger value="announcements" className="flex flex-1 min-w-[calc(33.333%-4px)] items-center justify-center gap-1.5 py-2">
               <Megaphone className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">{t("announcements")}</span>
             </TabsTrigger>
             {isAdmin && (
-              <TabsTrigger value="documents" className="flex flex-1 items-center justify-center gap-1.5 py-2 whitespace-nowrap">
+              <TabsTrigger value="documents" className="flex flex-1 min-w-[calc(33.333%-4px)] items-center justify-center gap-1.5 py-2">
                 <FolderOpen className="h-4 w-4 shrink-0" />
                 <span className="text-sm font-medium">{t("documents")}</span>
               </TabsTrigger>
