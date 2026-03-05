@@ -87,29 +87,29 @@ export default function LocationInventoryPage() {
 
         <Tabs defaultValue="items">
           {/* ── Main tabs ── */}
-          <TabsList className="flex flex-wrap w-full h-auto p-1 gap-1">
-            <TabsTrigger value="items" className="flex flex-1 min-w-[calc(33.333%-4px)] items-center justify-center gap-1.5 py-2 text-blue-600 data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-700 dark:text-blue-400 dark:data-[state=active]:text-blue-300">
+          <TabsList className="flex flex-wrap sm:flex-nowrap w-full h-auto p-1 gap-1">
+            <TabsTrigger value="items" className="flex flex-1 min-w-[calc(33.333%-4px)] sm:min-w-0 items-center justify-center gap-1.5 py-2 text-blue-600 data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-700 dark:text-blue-400 dark:data-[state=active]:text-blue-300">
               <Package className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">{t("products")}</span>
             </TabsTrigger>
-            <TabsTrigger value="sales" className="flex flex-1 min-w-[calc(33.333%-4px)] items-center justify-center gap-1.5 py-2 text-green-600 data-[state=active]:bg-green-500/10 data-[state=active]:text-green-700 dark:text-green-400 dark:data-[state=active]:text-green-300">
+            <TabsTrigger value="sales" className="flex flex-1 min-w-[calc(33.333%-4px)] sm:min-w-0 items-center justify-center gap-1.5 py-2 text-green-600 data-[state=active]:bg-green-500/10 data-[state=active]:text-green-700 dark:text-green-400 dark:data-[state=active]:text-green-300">
               <ShoppingCart className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">{t("sales")}</span>
             </TabsTrigger>
-            <TabsTrigger value="expenses" className="flex flex-1 min-w-[calc(33.333%-4px)] items-center justify-center gap-1.5 py-2 text-amber-600 data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-700 dark:text-amber-400 dark:data-[state=active]:text-amber-300">
+            <TabsTrigger value="expenses" className="flex flex-1 min-w-[calc(33.333%-4px)] sm:min-w-0 items-center justify-center gap-1.5 py-2 text-amber-600 data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-700 dark:text-amber-400 dark:data-[state=active]:text-amber-300">
               <Wallet className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">{t("expenses")}</span>
             </TabsTrigger>
-            <TabsTrigger value="customers" className="flex flex-1 min-w-[calc(33.333%-4px)] items-center justify-center gap-1.5 py-2 text-purple-600 data-[state=active]:bg-purple-500/10 data-[state=active]:text-purple-700 dark:text-purple-400 dark:data-[state=active]:text-purple-300">
+            <TabsTrigger value="customers" className="flex flex-1 min-w-[calc(33.333%-4px)] sm:min-w-0 items-center justify-center gap-1.5 py-2 text-purple-600 data-[state=active]:bg-purple-500/10 data-[state=active]:text-purple-700 dark:text-purple-400 dark:data-[state=active]:text-purple-300">
               <Users className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">{t("customers")}</span>
             </TabsTrigger>
-            <TabsTrigger value="announcements" className="flex flex-1 min-w-[calc(33.333%-4px)] items-center justify-center gap-1.5 py-2 text-rose-600 data-[state=active]:bg-rose-500/10 data-[state=active]:text-rose-700 dark:text-rose-400 dark:data-[state=active]:text-rose-300">
+            <TabsTrigger value="announcements" className="flex flex-1 min-w-[calc(33.333%-4px)] sm:min-w-0 items-center justify-center gap-1.5 py-2 text-rose-600 data-[state=active]:bg-rose-500/10 data-[state=active]:text-rose-700 dark:text-rose-400 dark:data-[state=active]:text-rose-300">
               <Megaphone className="h-4 w-4 shrink-0" />
               <span className="text-sm font-medium">{t("announcements")}</span>
             </TabsTrigger>
             {isAdmin && (
-              <TabsTrigger value="documents" className="flex flex-1 min-w-[calc(33.333%-4px)] items-center justify-center gap-1.5 py-2 text-teal-600 data-[state=active]:bg-teal-500/10 data-[state=active]:text-teal-700 dark:text-teal-400 dark:data-[state=active]:text-teal-300">
+              <TabsTrigger value="documents" className="flex flex-1 min-w-[calc(33.333%-4px)] sm:min-w-0 items-center justify-center gap-1.5 py-2 text-teal-600 data-[state=active]:bg-teal-500/10 data-[state=active]:text-teal-700 dark:text-teal-400 dark:data-[state=active]:text-teal-300">
                 <FolderOpen className="h-4 w-4 shrink-0" />
                 <span className="text-sm font-medium">{t("documents")}</span>
               </TabsTrigger>
