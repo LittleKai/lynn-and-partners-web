@@ -537,10 +537,7 @@ export function ItemsTab({
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-                                  onClick={() => {
-                                    setDeletingProduct(p);
-                                    setDeleteProductConfirmName("");
-                                  }}
+                                  onClick={() => setDeletingProduct(p)}
                                 >
                                   🗑️
                                 </Button>
