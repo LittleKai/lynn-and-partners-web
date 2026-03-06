@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import type { Location, Customer, Guest, Room } from "../_types";
 import { formatWithDots, parseDots } from "@/utils/formatNumber";
+import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 
 interface CustomerListProps {
   customers: Customer[];
@@ -187,6 +188,9 @@ export function CustomersTab({
   const [showCheckoutHistory, setShowCheckoutHistory] = useState(false);
   const [historyYear, setHistoryYear] = useState(() => new Date().getFullYear());
   const [historyMonth, setHistoryMonth] = useState(0); // 0 = all months
+  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
+  const [deletingGuest, setDeletingGuest] = useState<Guest | null>(null);
+  const [deletingRoom, setDeletingRoom] = useState<Room | null>(null);
 
   // ── Computed ──────────────────────────────────────────────────────
   // Map roomId → active guest display name (kept for compatibility)
@@ -334,15 +338,21 @@ export function CustomersTab({
     }
   };
 
-  const handleDeleteCustomer = async (id: string) => {
-    if (!confirm(t("confirmDelete"))) return;
+  const doDeleteCustomer = async () => {
+    if (!deletingCustomer) return;
     try {
-      await axiosInstance.delete(`/locations/${branchId}/customers?customerId=${id}`);
-      setCustomers((prev) => prev.filter((c) => c.id !== id));
+      await axiosInstance.delete(`/locations/${branchId}/customers?customerId=${deletingCustomer.id}`);
+      setCustomers((prev) => prev.filter((c) => c.id !== deletingCustomer.id));
+      setDeletingCustomer(null);
       toast({ title: t("customerDeleted") });
     } catch {
       toast({ title: t("importFailed"), variant: "destructive" });
     }
+  };
+
+  const handleDeleteCustomer = (id: string) => {
+    const c = customers.find((c) => c.id === id);
+    if (c) setDeletingCustomer(c);
   };
 
   // ── Guest CRUD ────────────────────────────────────────────────────
@@ -406,22 +416,26 @@ export function CustomersTab({
     }
   };
 
-  const handleDeleteGuest = async (id: string) => {
-    if (!confirm(t("confirmDelete"))) return;
-    const guest = guests.find((g) => g.id === id);
+  const doDeleteGuest = async () => {
+    if (!deletingGuest) return;
     try {
-      await axiosInstance.delete(`/locations/${branchId}/guests?guestId=${id}`);
-      setGuests((prev) => prev.filter((g) => g.id !== id));
-      // Reset room to available if the deleted guest was still active
-      if (guest?.status === "active" && guest.roomId) {
+      await axiosInstance.delete(`/locations/${branchId}/guests?guestId=${deletingGuest.id}`);
+      setGuests((prev) => prev.filter((g) => g.id !== deletingGuest.id));
+      if (deletingGuest.status === "active" && deletingGuest.roomId) {
         setRooms((prev) =>
-          prev.map((r) => r.id === guest.roomId ? { ...r, status: "available" } : r)
+          prev.map((r) => r.id === deletingGuest.roomId ? { ...r, status: "available" } : r)
         );
       }
+      setDeletingGuest(null);
       toast({ title: t("guestDeleted") });
     } catch {
       toast({ title: t("importFailed"), variant: "destructive" });
     }
+  };
+
+  const handleDeleteGuest = (id: string) => {
+    const g = guests.find((g) => g.id === id);
+    if (g) setDeletingGuest(g);
   };
 
   const handleUpdateGuest = async () => {
@@ -531,17 +545,23 @@ export function CustomersTab({
     setShowAddGuest(true);
   };
 
-  const handleDeleteRoom = async (roomId: string) => {
-    if (!confirm(t("confirmDelete"))) return;
+  const doDeleteRoom = async () => {
+    if (!deletingRoom) return;
     try {
-      await axiosInstance.delete(`/locations/${branchId}/rooms/${roomId}`);
-      setRooms((prev) => prev.filter((r) => r.id !== roomId));
+      await axiosInstance.delete(`/locations/${branchId}/rooms/${deletingRoom.id}`);
+      setRooms((prev) => prev.filter((r) => r.id !== deletingRoom.id));
+      setDeletingRoom(null);
       toast({ title: t("roomDeleted") });
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       const msg = e.response?.data?.error;
       toast({ title: msg?.includes("occupied") ? t("roomDeleteFailed") : t("roomAddFailed"), variant: "destructive" });
     }
+  };
+
+  const handleDeleteRoom = (roomId: string) => {
+    const r = rooms.find((r) => r.id === roomId);
+    if (r) setDeletingRoom(r);
   };
 
   return (
@@ -551,7 +571,7 @@ export function CustomersTab({
         <Tabs defaultValue="rooms">
           <TabsList className="w-full">
             <TabsTrigger value="rooms" className="flex-1">{t("rooms")} ({rooms.length})</TabsTrigger>
-            <TabsTrigger value="guests" className="flex-1">{t("guests")} ({guests.length})</TabsTrigger>
+            <TabsTrigger value="guests" className="flex-1">{t("guests")} ({guestsActive.length})</TabsTrigger>
           </TabsList>
 
           {/* ─── Guests sub-tab ─── */}
@@ -1372,6 +1392,30 @@ export function CustomersTab({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Delete Customer Confirmation ── */}
+      <DeleteConfirmDialog
+        open={!!deletingCustomer}
+        onClose={() => setDeletingCustomer(null)}
+        onConfirm={doDeleteCustomer}
+        confirmText={deletingCustomer?.name ?? ""}
+      />
+
+      {/* ── Delete Guest Confirmation ── */}
+      <DeleteConfirmDialog
+        open={!!deletingGuest}
+        onClose={() => setDeletingGuest(null)}
+        onConfirm={doDeleteGuest}
+        confirmText={deletingGuest?.name ?? ""}
+      />
+
+      {/* ── Delete Room Confirmation ── */}
+      <DeleteConfirmDialog
+        open={!!deletingRoom}
+        onClose={() => setDeletingRoom(null)}
+        onConfirm={doDeleteRoom}
+        confirmText={deletingRoom?.number ?? ""}
+      />
     </>
   );
 }

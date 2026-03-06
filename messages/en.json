@@ -564,6 +564,11 @@
   },
   "common": {
     "attachmentMaxError": "Maximum {max} attachments allowed",
-    "previewImage": "Preview"
+    "previewImage": "Preview",
+    "deleteConfirmTitle": "Confirm Deletion",
+    "deleteConfirmWarning": "This action cannot be undone.",
+    "typeToConfirm": "Type the text above to confirm:",
+    "cancel": "Cancel",
+    "delete": "Delete"
   }
 }

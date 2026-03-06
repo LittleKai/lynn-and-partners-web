@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Megaphone, Pencil } from "lucide-react";
+import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import type { Announcement } from "../_types";
 
 interface AnnouncementsTabProps {
@@ -48,6 +49,7 @@ export function AnnouncementsTab({
     type: "info",
   });
   const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
+  const [deletingAnnouncement, setDeletingAnnouncement] = useState<Announcement | null>(null);
 
   // ── Handlers ──────────────────────────────────────────────────────
   const openNewAnnouncement = () => {
@@ -91,11 +93,12 @@ export function AnnouncementsTab({
     }
   };
 
-  const handleAnnouncementDelete = async (annId: string) => {
-    if (!confirm(t("confirmDelete"))) return;
+  const doDeleteAnnouncement = async () => {
+    if (!deletingAnnouncement) return;
     try {
-      await axiosInstance.delete(`/locations/${branchId}/announcements/${annId}`);
-      setAnnouncements((prev) => prev.filter((a) => a.id !== annId));
+      await axiosInstance.delete(`/locations/${branchId}/announcements/${deletingAnnouncement.id}`);
+      setAnnouncements((prev) => prev.filter((a) => a.id !== deletingAnnouncement.id));
+      setDeletingAnnouncement(null);
       toast({ title: t("announcementDeleted") });
     } catch {
       toast({ title: t("announcementDeleteFailed"), variant: "destructive" });
@@ -168,7 +171,7 @@ export function AnnouncementsTab({
                         variant="ghost"
                         size="sm"
                         className="text-destructive hover:text-destructive"
-                        onClick={() => handleAnnouncementDelete(ann.id)}
+                        onClick={() => setDeletingAnnouncement(ann)}
                       >
                         🗑️
                       </Button>
@@ -241,6 +244,14 @@ export function AnnouncementsTab({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Delete Announcement Confirmation ── */}
+      <DeleteConfirmDialog
+        open={!!deletingAnnouncement}
+        onClose={() => setDeletingAnnouncement(null)}
+        onConfirm={doDeleteAnnouncement}
+        confirmText={deletingAnnouncement?.title ?? ""}
+      />
     </>
   );
 }

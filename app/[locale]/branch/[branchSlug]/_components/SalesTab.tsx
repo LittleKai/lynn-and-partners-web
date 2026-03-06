@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NewOrderDialog } from "./dialogs/NewOrderDialog";
+import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import type {
   Location,
   Product,
@@ -518,31 +519,14 @@ export function SalesTab({
       </Dialog>
 
       {/* ── Delete Order Confirmation ── */}
-      <Dialog
+      <DeleteConfirmDialog
         open={!!deletingOrderId}
-        onOpenChange={(open) => !open && setDeletingOrderId(null)}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-destructive">{t("confirmDeleteItem")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <p className="text-sm text-muted-foreground">{t("deleteOrderWarning")}</p>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setDeletingOrderId(null)} disabled={isDeletingOrder}>
-                {t("cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => deletingOrderId && handleDeleteOrder(deletingOrderId)}
-                disabled={isDeletingOrder}
-              >
-                {isDeletingOrder ? t("submitting") : t("delete")}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        onClose={() => setDeletingOrderId(null)}
+        onConfirm={() => deletingOrderId && handleDeleteOrder(deletingOrderId)}
+        isDeleting={isDeletingOrder}
+        description={t("deleteOrderWarning")}
+        confirmText="DELETE"
+      />
     </>
   );
 }

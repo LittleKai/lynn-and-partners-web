@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { ImportStockDialog } from "./dialogs/ImportStockDialog";
 import { ImagePreviewDialog } from "@/components/ui/image-preview-dialog";
+import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import type {
   Location,
   Product,
@@ -93,7 +94,7 @@ export function ItemsTab({
 
   // ── Delete product confirmation ────────────────────────────────────
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
-  const [deleteProductConfirmName, setDeleteProductConfirmName] = useState("");
+  const [deletingSupplier, setDeletingSupplier] = useState<Supplier | null>(null);
 
   // ── Deactivate confirmation ─────────────────────────────────────────
   const [deactivatingProduct, setDeactivatingProduct] = useState<Product | null>(null);
@@ -376,11 +377,12 @@ export function ItemsTab({
     }
   };
 
-  const handleDeleteSupplier = async (id: string) => {
-    if (!confirm(t("confirmDelete"))) return;
+  const doDeleteSupplier = async () => {
+    if (!deletingSupplier) return;
     try {
-      await axiosInstance.delete(`/locations/${branchId}/suppliers?supplierId=${id}`);
-      setSuppliers((prev) => prev.filter((s) => s.id !== id));
+      await axiosInstance.delete(`/locations/${branchId}/suppliers?supplierId=${deletingSupplier.id}`);
+      setSuppliers((prev) => prev.filter((s) => s.id !== deletingSupplier.id));
+      setDeletingSupplier(null);
       toast({ title: t("supplierDeleted") });
     } catch {
       toast({ title: t("importFailed"), variant: "destructive" });
@@ -721,7 +723,7 @@ export function ItemsTab({
                           variant="ghost"
                           size="sm"
                           className="text-destructive"
-                          onClick={() => handleDeleteSupplier(s.id)}
+                          onClick={() => setDeletingSupplier(s)}
                         >
                           🗑️
                         </Button>
@@ -793,52 +795,21 @@ export function ItemsTab({
       />
 
       {/* ── Delete Product Confirmation Dialog ── */}
-      <Dialog
+      <DeleteConfirmDialog
         open={!!deletingProduct}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeletingProduct(null);
-            setDeleteProductConfirmName("");
-          }
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-destructive">{t("confirmDeleteItem")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <p className="text-sm text-muted-foreground">{t("deleteItemWarning")}</p>
-            <code className="block bg-muted px-3 py-2 rounded text-sm font-mono">
-              {deletingProduct?.name}
-            </code>
-            <p className="text-sm">{t("typeItemNameToConfirm")}</p>
-            <Input
-              value={deleteProductConfirmName}
-              onChange={(e) => setDeleteProductConfirmName(e.target.value)}
-              placeholder={deletingProduct?.name}
-              autoFocus
-            />
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setDeletingProduct(null);
-                  setDeleteProductConfirmName("");
-                }}
-              >
-                {t("cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={deleteProductConfirmName !== deletingProduct?.name}
-                onClick={handleDeleteProduct}
-              >
-                {t("delete")}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        onClose={() => setDeletingProduct(null)}
+        onConfirm={handleDeleteProduct}
+        confirmText={deletingProduct?.name ?? ""}
+        description={t("deleteItemWarning")}
+      />
+
+      {/* ── Delete Supplier Confirmation Dialog ── */}
+      <DeleteConfirmDialog
+        open={!!deletingSupplier}
+        onClose={() => setDeletingSupplier(null)}
+        onConfirm={doDeleteSupplier}
+        confirmText={deletingSupplier?.name ?? ""}
+      />
 
       {/* ── Deactivate Confirmation Dialog ── */}
       <Dialog

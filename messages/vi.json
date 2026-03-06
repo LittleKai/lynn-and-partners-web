@@ -564,6 +564,11 @@
   },
   "common": {
     "attachmentMaxError": "Chỉ được phép tối đa {max} file đính kèm",
-    "previewImage": "Xem ảnh"
+    "previewImage": "Xem ảnh",
+    "deleteConfirmTitle": "Xác nhận xóa",
+    "deleteConfirmWarning": "Hành động này không thể hoàn tác.",
+    "typeToConfirm": "Nhập đoạn văn trên để xác nhận:",
+    "cancel": "Hủy",
+    "delete": "Xóa"
   }
 }

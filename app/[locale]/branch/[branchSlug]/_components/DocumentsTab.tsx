@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
 import { AttachmentSlots } from "@/components/ui/attachment-slots";
 import { ImagePreviewDialog } from "@/components/ui/image-preview-dialog";
+import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,6 +71,7 @@ export function DocumentsTab({
   const [editExistingUrl, setEditExistingUrl] = useState<string | null>(null);
   const [editNewFiles, setEditNewFiles] = useState<(File | null)[]>(Array(4).fill(null));
   const [isSavingDoc, setIsSavingDoc] = useState(false);
+  const [deletingDoc, setDeletingDoc] = useState<LocationDoc | null>(null);
 
   // ── Preview ────────────────────────────────────────────────────────
   const [docPreviewUrl, setDocPreviewUrl] = useState<string | null>(null);
@@ -132,11 +134,12 @@ export function DocumentsTab({
     }
   };
 
-  const handleDocDelete = async (docId: string) => {
-    if (!confirm(t("confirmDelete"))) return;
+  const doDeleteDoc = async () => {
+    if (!deletingDoc) return;
     try {
-      await axiosInstance.delete(`/locations/${branchId}/documents/${docId}`);
-      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+      await axiosInstance.delete(`/locations/${branchId}/documents/${deletingDoc.id}`);
+      setDocuments((prev) => prev.filter((d) => d.id !== deletingDoc.id));
+      setDeletingDoc(null);
       toast({ title: t("documentDeleted") });
     } catch {
       toast({ title: t("documentDeleteFailed"), variant: "destructive" });
@@ -320,7 +323,7 @@ export function DocumentsTab({
                     variant="ghost"
                     size="sm"
                     className="text-destructive hover:text-destructive"
-                    onClick={() => handleDocDelete(doc.id)}
+                    onClick={() => setDeletingDoc(doc)}
                   >
                     🗑️
                   </Button>
@@ -494,6 +497,14 @@ export function DocumentsTab({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Delete Document Confirmation ── */}
+      <DeleteConfirmDialog
+        open={!!deletingDoc}
+        onClose={() => setDeletingDoc(null)}
+        onConfirm={doDeleteDoc}
+        confirmText={deletingDoc?.name ?? ""}
+      />
     </>
   );
 }
