@@ -9,7 +9,8 @@ import { ImagePreviewDialog } from "@/components/ui/image-preview-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Paperclip, Pencil } from "lucide-react";
+import { Paperclip, Pencil, Trash2 } from "lucide-react";
+import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -81,6 +82,25 @@ export function ExpensesTab({
   const [viewingAttachments, setViewingAttachments] = useState<Expense | null>(null);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
+
+  // ── Delete ─────────────────────────────────────────────────────────
+  const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
+  const [isDeletingExpense, setIsDeletingExpense] = useState(false);
+
+  const doDeleteExpense = async () => {
+    if (!deletingExpense) return;
+    setIsDeletingExpense(true);
+    try {
+      await axiosInstance.delete(`/locations/${branchId}/expenses/${deletingExpense.id}`);
+      setExpenses((prev) => prev.filter((e) => e.id !== deletingExpense.id));
+      setDeletingExpense(null);
+      toast({ title: t("expenseDeleted") });
+    } catch {
+      toast({ title: t("expenseDeleteFailed"), variant: "destructive" });
+    } finally {
+      setIsDeletingExpense(false);
+    }
+  };
 
   // ── Computed ──────────────────────────────────────────────────────
   const expenseTypes = useMemo(
@@ -366,6 +386,16 @@ export function ExpensesTab({
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
                           )}
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-destructive hover:text-destructive"
+                              onClick={() => setDeletingExpense(exp)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -633,6 +663,15 @@ export function ExpensesTab({
         initialIndex={previewIndex}
         open={previewImages.length > 0}
         onClose={() => setPreviewImages([])}
+      />
+
+      {/* ── Delete Expense Confirmation ── */}
+      <DeleteConfirmDialog
+        open={!!deletingExpense}
+        onClose={() => setDeletingExpense(null)}
+        onConfirm={doDeleteExpense}
+        isDeleting={isDeletingExpense}
+        confirmText="DELETE"
       />
     </>
   );

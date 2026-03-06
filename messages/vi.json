@@ -345,6 +345,8 @@
     "editExpense": "Sửa chi phí",
     "expenseUpdated": "Đã cập nhật chi phí.",
     "updateExpenseFailed": "Cập nhật chi phí thất bại",
+    "expenseDeleted": "Đã xóa chi phí.",
+    "expenseDeleteFailed": "Xóa chi phí thất bại",
     "expenseType": "Loại chi phí",
     "expenseRent": "Tiền thuê",
     "expenseUtilities": "Điện nước / Internet",

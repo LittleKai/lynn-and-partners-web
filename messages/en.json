@@ -345,6 +345,8 @@
     "editExpense": "Edit Expense",
     "expenseUpdated": "Expense updated.",
     "updateExpenseFailed": "Failed to update expense",
+    "expenseDeleted": "Expense deleted.",
+    "expenseDeleteFailed": "Failed to delete expense",
     "expenseType": "Expense Type",
     "expenseRent": "Rent",
     "expenseUtilities": "Utilities",

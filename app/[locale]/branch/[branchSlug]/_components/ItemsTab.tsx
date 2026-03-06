@@ -323,7 +323,6 @@ export function ItemsTab({
       await axiosInstance.delete(`/locations/${branchId}/products/${deletingProduct.id}`);
       setProducts((prev) => prev.filter((p) => p.id !== deletingProduct.id));
       setDeletingProduct(null);
-      setDeleteProductConfirmName("");
       toast({ title: t("deleteProductSuccess") });
     } catch {
       toast({ title: t("deleteProductFailed"), variant: "destructive" });
