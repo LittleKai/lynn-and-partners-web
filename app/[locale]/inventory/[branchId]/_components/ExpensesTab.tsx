@@ -484,7 +484,6 @@ export function ExpensesTab({
               <AttachmentSlots
                 files={expenseFiles}
                 onChange={setExpenseFiles}
-                onPreview={setExpensePreviewUrl}
                 accept="image/*,.pdf,.doc,.docx"
               />
             </div>
@@ -603,7 +602,6 @@ export function ExpensesTab({
                 <AttachmentSlots
                   files={editNewFiles}
                   onChange={setEditNewFiles}
-                  onPreview={setExpensePreviewUrl}
                   maxSlots={Math.max(1, 10 - editExistingImageUrls.length - editExistingFileUrls.length)}
                   accept="image/*,.pdf,.doc,.docx"
                 />

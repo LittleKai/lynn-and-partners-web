@@ -428,7 +428,6 @@ export function ImportStockDialog({
               <AttachmentSlots
                 files={importFiles}
                 onChange={setImportFiles}
-                onPreview={setImportPreviewUrl}
               />
             </div>
 

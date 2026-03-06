@@ -442,7 +442,6 @@ export default function ExportPage() {
             <AttachmentSlots
               files={files}
               onChange={setFiles}
-              onPreview={setPreviewUrl}
             />
           </div>
 

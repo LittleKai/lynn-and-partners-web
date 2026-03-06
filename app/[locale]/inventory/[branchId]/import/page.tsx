@@ -543,7 +543,6 @@ export default function ImportPage() {
             <AttachmentSlots
               files={files}
               onChange={setFiles}
-              onPreview={setPreviewUrl}
             />
           </div>
 

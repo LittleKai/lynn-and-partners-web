@@ -196,7 +196,6 @@ export default function NewExpensePage() {
             <AttachmentSlots
               files={files}
               onChange={setFiles}
-              onPreview={setPreviewUrl}
               accept="image/*,.pdf,.doc,.docx"
             />
           </div>
