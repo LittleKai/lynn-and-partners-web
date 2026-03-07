@@ -8,7 +8,11 @@ export const config = {
 };
 
 const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff"];
-const VIDEO_EXTENSIONS = ["mp4", "mov", "avi", "mkv", "wmv", "flv", "webm", "m4v", "3gp", "ogv", "mpg", "mpeg"];
+const VIDEO_EXTENSIONS = ["mp4", "mov", "avi", "mkv", "wmv", "flv", "webm", "m4v", "3gp", "3gpp", "ogv", "mpg", "mpeg", "ts", "m2ts"];
+
+// Dropbox single-chunk limit is 150MB; use chunked session for anything larger
+const DROPBOX_CHUNK_LIMIT = 140 * 1024 * 1024; // 140MB to be safe
+const CHUNK_SIZE = 100 * 1024 * 1024; // 100MB per chunk
 
 function getExtension(filename: string): string {
   return filename.split(".").pop()?.toLowerCase() || "";
@@ -26,10 +30,6 @@ function isVideo(filename: string): boolean {
  * Build Dropbox path:
  *   default:  /{DROPBOX_FOLDER}/{locationName}/{YYYY}/{MM}/{DD}-{safeName}
  *   subfolder: /{DROPBOX_FOLDER}/{locationName}/{subfolder}/{DD}-{safeName}
- *
- * Example:
- *   /lynn-partners/Kho Hà Nội/2026/02/27-hoa-don.pdf
- *   /lynn-partners/Kho Hà Nội/documents/27-hop-dong.pdf
  */
 function buildDropboxPath(
   baseFolder: string,
@@ -42,10 +42,7 @@ function buildDropboxPath(
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
 
-  // Sanitize location name: keep unicode letters/numbers, replace special chars
   const safeLocation = locationName.trim().replace(/[/\\:*?"<>|]/g, "-") || "general";
-
-  // Sanitize filename: keep alphanumeric, dot, dash, underscore
   const safeName = originalName.replace(/[^a-zA-Z0-9.\-_àáảãạăắặẳẵặâấầẩẫậđèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵÀÁẢÃẠĂẮẶẲẴẶÂẤẦẨẪẬĐÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ]/g, "_").substring(0, 80);
 
   if (subfolder) {
@@ -56,9 +53,57 @@ function buildDropboxPath(
   return `${baseFolder}/${safeLocation}/${year}/${month}/${day}-${safeName}`;
 }
 
+// ─── Chunked Dropbox upload (handles files > 140MB) ─────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function dropboxUploadWithSession(dbx: any, dropboxPath: string, fileBuffer: Buffer): Promise<void> {
+  if (fileBuffer.length <= DROPBOX_CHUNK_LIMIT) {
+    // Small enough: single upload
+    await dbx.filesUpload({
+      path: dropboxPath,
+      contents: fileBuffer,
+      mode: { ".tag": "overwrite" },
+    });
+    return;
+  }
+
+  // Large file: use upload session (chunked)
+  console.log(`[upload] File ${fileBuffer.length} bytes — using chunked upload session`);
+
+  const firstChunk = fileBuffer.slice(0, CHUNK_SIZE);
+  const sessionResult = await dbx.filesUploadSessionStart({
+    contents: firstChunk,
+    close: false,
+  });
+  const sessionId = (sessionResult.result as { session_id: string }).session_id;
+
+  let offset = firstChunk.length;
+
+  while (offset + CHUNK_SIZE < fileBuffer.length) {
+    const chunk = fileBuffer.slice(offset, offset + CHUNK_SIZE);
+    await dbx.filesUploadSessionAppendV2({
+      cursor: { session_id: sessionId, offset },
+      close: false,
+      contents: chunk,
+    });
+    offset += chunk.length;
+  }
+
+  // Final chunk — finish session
+  const lastChunk = fileBuffer.slice(offset);
+  await dbx.filesUploadSessionFinish({
+    cursor: { session_id: sessionId, offset },
+    commit: {
+      path: dropboxPath,
+      mode: { ".tag": "overwrite" },
+    },
+    contents: lastChunk,
+  });
+}
+
 // ─── Upload to Dropbox ───────────────────────────────────────────────
 async function uploadToDropbox(
   filePath: string,
+  fileSize: number,
   originalName: string,
   locationName: string,
   subfolder?: string
@@ -71,7 +116,9 @@ async function uploadToDropbox(
   const imageUpload = isImage(originalName);
   const videoUpload = isVideo(originalName);
 
-  // Resize images with sharp before uploading; videos and other files upload as-is
+  console.log(`[upload] File: "${originalName}" | size: ${(fileSize / 1024 / 1024).toFixed(1)}MB | type: ${imageUpload ? "image" : videoUpload ? "video" : "raw"}`);
+
+  // Resize images with sharp; videos and other files upload as-is
   let fileBuffer: Buffer;
   if (imageUpload) {
     try {
@@ -80,7 +127,8 @@ async function uploadToDropbox(
         .resize({ width: 1200, withoutEnlargement: true })
         .jpeg({ quality: 85 })
         .toBuffer();
-    } catch {
+    } catch (sharpErr) {
+      console.warn("[upload] sharp resize failed, using original:", sharpErr);
       fileBuffer = fs.readFileSync(filePath);
     }
   } else {
@@ -88,22 +136,16 @@ async function uploadToDropbox(
   }
 
   const dropboxPath = buildDropboxPath(DROPBOX_FOLDER, locationName, originalName, subfolder);
+  console.log(`[upload] Dropbox path: ${dropboxPath}`);
 
-  // Upload to Dropbox
-  await dbx.filesUpload({
-    path: dropboxPath,
-    contents: fileBuffer,
-    mode: { ".tag": "overwrite" },
-  });
+  await dropboxUploadWithSession(dbx, dropboxPath, fileBuffer);
 
   // Create a shared link
   let sharedLink: string;
   try {
     const linkResult = await dbx.sharingCreateSharedLinkWithSettings({
       path: dropboxPath,
-      settings: {
-        requested_visibility: { ".tag": "public" },
-      },
+      settings: { requested_visibility: { ".tag": "public" } },
     });
     sharedLink = (linkResult.result as { url: string }).url;
   } catch (err: unknown) {
@@ -152,15 +194,29 @@ export default async function handler(
 
     const file = fileField[0] as File;
     const originalName = file.originalFilename || "upload";
+    const fileSize = file.size || 0;
 
     const locationName = (fields as Fields).locationName?.[0] || "general";
     const subfolder = (fields as Fields).subfolder?.[0] || undefined;
 
-    const result = await uploadToDropbox(file.filepath, originalName, locationName, subfolder);
+    const result = await uploadToDropbox(file.filepath, fileSize, originalName, locationName, subfolder);
 
     return res.status(200).json(result);
-  } catch (error) {
-    console.error("Upload error:", error);
-    return res.status(500).json({ error: "Upload failed" });
+  } catch (error: unknown) {
+    // Log full error detail to server console
+    console.error("[upload] Error:", error);
+
+    // Return useful details to client for debugging
+    const errMsg =
+      error instanceof Error
+        ? error.message
+        : typeof error === "object" && error !== null
+        ? JSON.stringify(error)
+        : String(error);
+
+    return res.status(500).json({
+      error: "Upload failed",
+      detail: errMsg,
+    });
   }
 }
