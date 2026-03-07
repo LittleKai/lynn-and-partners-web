@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
+import { reportDevError } from "@/utils/reportDevError";
 import { AttachmentSlots } from "@/components/ui/attachment-slots";
 import { MediaPreviewDialog, type MediaPreviewItem } from "@/components/ui/media-preview-dialog";
 import { Button } from "@/components/ui/button";
@@ -145,6 +146,7 @@ export function DocumentsTab({
       toast({ title: t("documentUploaded") });
       closeUploadDialog();
     } catch (err: unknown) {
+      reportDevError("DocumentsTab.handleUploadConfirm", err);
       const e = err as { response?: { data?: { error?: unknown; detail?: unknown } } };
       const rawDesc = e.response?.data?.detail ?? e.response?.data?.error;
       const desc = typeof rawDesc === "string" ? rawDesc : undefined;
@@ -205,6 +207,7 @@ export function DocumentsTab({
       toast({ title: t("documentUpdated") });
       setEditingDoc(null);
     } catch (err: unknown) {
+      reportDevError("DocumentsTab.handleEditSave", err);
       const e = err as { response?: { data?: { error?: unknown; detail?: unknown } } };
       const rawDesc = e.response?.data?.detail ?? e.response?.data?.error;
       const desc = typeof rawDesc === "string" ? rawDesc : undefined;
