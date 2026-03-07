@@ -388,8 +388,9 @@ export function CustomersTab({
       setShowAddGuest(false);
       toast({ title: t("guestAdded") });
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      toast({ title: e.response?.data?.error || t("importFailed"), variant: "destructive" });
+      const e = err as { response?: { data?: { error?: unknown } } };
+      const errMsg = typeof e.response?.data?.error === "string" ? e.response?.data?.error : undefined;
+      toast({ title: errMsg || t("importFailed"), variant: "destructive" });
     } finally {
       setIsGuestSubmitting(false);
     }
@@ -457,8 +458,9 @@ export function CustomersTab({
       setEditingGuest(null);
       toast({ title: t("guestUpdated") });
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      toast({ title: e.response?.data?.error || t("importFailed"), variant: "destructive" });
+      const e = err as { response?: { data?: { error?: unknown } } };
+      const errMsg = typeof e.response?.data?.error === "string" ? e.response?.data?.error : undefined;
+      toast({ title: errMsg || t("importFailed"), variant: "destructive" });
     } finally {
       setIsUpdatingGuest(false);
     }
@@ -480,8 +482,8 @@ export function CustomersTab({
       setShowAddRoom(false);
       toast({ title: t("roomAdded") });
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      const msg = e.response?.data?.error;
+      const e = err as { response?: { data?: { error?: unknown } } };
+      const msg = typeof e.response?.data?.error === "string" ? e.response?.data?.error : undefined;
       toast({ title: msg === "Room number already exists" ? t("roomDuplicate") : t("roomAddFailed"), variant: "destructive" });
     } finally {
       setIsRoomSubmitting(false);
@@ -502,8 +504,8 @@ export function CustomersTab({
       setEditingRoom(null);
       toast({ title: t("roomUpdated") });
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      const msg = e.response?.data?.error;
+      const e = err as { response?: { data?: { error?: unknown } } };
+      const msg = typeof e.response?.data?.error === "string" ? e.response?.data?.error : undefined;
       toast({ title: msg === "Room number already exists" ? t("roomDuplicate") : t("roomAddFailed"), variant: "destructive" });
     } finally {
       setIsUpdatingRoom(false);
@@ -553,8 +555,8 @@ export function CustomersTab({
       setDeletingRoom(null);
       toast({ title: t("roomDeleted") });
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      const msg = e.response?.data?.error;
+      const e = err as { response?: { data?: { error?: unknown } } };
+      const msg = typeof e.response?.data?.error === "string" ? e.response?.data?.error : undefined;
       toast({ title: msg?.includes("occupied") ? t("roomDeleteFailed") : t("roomAddFailed"), variant: "destructive" });
     }
   };

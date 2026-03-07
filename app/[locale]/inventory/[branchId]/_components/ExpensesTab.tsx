@@ -161,10 +161,10 @@ export function ExpensesTab({
       const expRes = await axiosInstance.get(`/locations/${branchId}/expenses`).catch(() => null);
       if (expRes) setExpenses(expRes.data.expenses);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
+      const error = err as { response?: { data?: { error?: unknown } } };
       toast({
         title: t("expenseFailed"),
-        description: error.response?.data?.error,
+        description: typeof error.response?.data?.error === "string" ? error.response?.data?.error : undefined,
         variant: "destructive",
       });
     } finally {
@@ -224,10 +224,10 @@ export function ExpensesTab({
       toast({ title: t("expenseUpdated") });
       setEditingExpense(null);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
+      const error = err as { response?: { data?: { error?: unknown } } };
       toast({
         title: t("updateExpenseFailed"),
-        description: error.response?.data?.error,
+        description: typeof error.response?.data?.error === "string" ? error.response?.data?.error : undefined,
         variant: "destructive",
       });
     } finally {

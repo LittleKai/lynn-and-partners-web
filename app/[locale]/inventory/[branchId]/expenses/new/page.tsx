@@ -105,10 +105,10 @@ export default function NewExpensePage() {
       toast({ title: t("expenseAdded") });
       router.push(`/inventory/${branchId}?tab=expenses`);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
+      const error = err as { response?: { data?: { error?: unknown } } };
       toast({
         title: t("expenseFailed"),
-        description: error.response?.data?.error,
+        description: typeof error.response?.data?.error === "string" ? error.response?.data?.error : undefined,
         variant: "destructive",
       });
     } finally {

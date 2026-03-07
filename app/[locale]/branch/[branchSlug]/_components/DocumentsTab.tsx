@@ -154,10 +154,12 @@ export function DocumentsTab({
       toast({ title: t("documentUploaded") });
       closeUploadDialog();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string; detail?: string } } };
+      const e = err as { response?: { data?: { error?: unknown; detail?: unknown } } };
+      const rawDesc = e.response?.data?.detail ?? e.response?.data?.error;
+      const desc = typeof rawDesc === "string" ? rawDesc : undefined;
       toast({
         title: t("documentUploadFailed"),
-        description: e.response?.data?.detail || e.response?.data?.error,
+        description: desc,
         variant: "destructive",
       });
     } finally {
@@ -215,10 +217,12 @@ export function DocumentsTab({
       toast({ title: t("documentUpdated") });
       setEditingDoc(null);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string; detail?: string } } };
+      const e = err as { response?: { data?: { error?: unknown; detail?: unknown } } };
+      const rawDesc = e.response?.data?.detail ?? e.response?.data?.error;
+      const desc = typeof rawDesc === "string" ? rawDesc : undefined;
       toast({
         title: t("documentUpdateFailed"),
-        description: e.response?.data?.detail || e.response?.data?.error,
+        description: desc,
         variant: "destructive",
       });
     } finally {

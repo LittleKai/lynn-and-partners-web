@@ -169,10 +169,10 @@ export default function LocationsPage() {
       setCreateForm({ ...emptyForm });
       toast({ title: t("locationCreated") });
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
+      const error = err as { response?: { data?: { error?: unknown } } };
       toast({
         title: t("createFailed"),
-        description: error.response?.data?.error,
+        description: typeof error.response?.data?.error === "string" ? error.response?.data?.error : undefined,
         variant: "destructive",
       });
     } finally {

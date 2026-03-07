@@ -221,10 +221,10 @@ export default function ExportPage() {
       toast({ title: t("exportSuccess") });
       router.push(`/inventory/${branchId}`);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
+      const error = err as { response?: { data?: { error?: unknown } } };
       toast({
         title: t("exportFailed"),
-        description: error.response?.data?.error,
+        description: typeof error.response?.data?.error === "string" ? error.response?.data?.error : undefined,
         variant: "destructive",
       });
     } finally {
