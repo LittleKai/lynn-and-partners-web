@@ -36,16 +36,16 @@ export default async function handler(
     }
 
     case "POST": {
-      const { name, url, resourceType, notes, type } = req.body as {
+      const { name, urls, resourceTypes, notes, type } = req.body as {
         name: string;
-        url: string;
-        resourceType: string;
+        urls: string[];
+        resourceTypes: string[];
         notes?: string;
         type?: string;
       };
 
-      if (!name || !url) {
-        return res.status(400).json({ error: "name and url are required" });
+      if (!name || !urls?.length) {
+        return res.status(400).json({ error: "name and urls are required" });
       }
 
       const document = await prisma.locationDocument.create({
@@ -54,8 +54,8 @@ export default async function handler(
           name,
           type: type || "GENERAL",
           notes: notes || null,
-          url,
-          resourceType: resourceType || "raw",
+          urls,
+          resourceTypes: resourceTypes || urls.map(() => "raw"),
           uploadedById: session.id,
           uploadedByName: session.name,
           uploadedAt: new Date(),

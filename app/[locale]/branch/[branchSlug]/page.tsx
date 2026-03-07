@@ -15,6 +15,7 @@ import { CustomersTab } from "./_components/CustomersTab";
 import { AnnouncementsTab } from "./_components/AnnouncementsTab";
 import { DocumentsTab } from "./_components/DocumentsTab";
 
+
 export default function LocationInventoryPage() {
   const t = useTranslations("inventory");
   const {
@@ -205,6 +206,7 @@ export default function LocationInventoryPage() {
               />
             </TabsContent>
           )}
+
         </Tabs>
       </main>
     </div>

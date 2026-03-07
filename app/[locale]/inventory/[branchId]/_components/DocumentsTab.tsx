@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
 import { AttachmentSlots } from "@/components/ui/attachment-slots";
+import { MediaPreviewDialog, type MediaPreviewItem } from "@/components/ui/media-preview-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FolderOpen, Pencil, X } from "lucide-react";
+import { FolderOpen, Paperclip, Pencil, X } from "lucide-react";
 import type { Location, LocationDoc } from "../_types";
 
 const DOC_TYPES = ["GENERAL", "CONTRACT", "INVOICE", "REPORT", "PERMIT", "MANUAL", "PROCEDURE", "POLICY", "OTHER"] as const;
@@ -54,26 +55,32 @@ export function DocumentsTab({
   const t = useTranslations("inventory");
   const { toast } = useToast();
 
-  // ── Upload dialog state ────────────────────────────────────────────
-  const [showDocUploadDialog, setShowDocUploadDialog] = useState(false);
-  const [docType, setDocType] = useState("GENERAL");
-  const [docNote, setDocNote] = useState("");
-  const [docFiles, setDocFiles] = useState<(File | null)[]>(Array(10).fill(null));
-  const [isDocUploading, setIsDocUploading] = useState(false);
+  // ── Upload dialog ──────────────────────────────────────────────────
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [uploadName, setUploadName] = useState("");
+  const [uploadType, setUploadType] = useState("GENERAL");
+  const [uploadNote, setUploadNote] = useState("");
+  const [uploadFiles, setUploadFiles] = useState<(File | null)[]>(Array(10).fill(null));
+  const [isUploading, setIsUploading] = useState(false);
 
-  // ── Edit dialog state ──────────────────────────────────────────────
+  // ── Edit dialog ────────────────────────────────────────────────────
   const [editingDoc, setEditingDoc] = useState<LocationDoc | null>(null);
-  const [editDocName, setEditDocName] = useState("");
-  const [editDocType, setEditDocType] = useState("GENERAL");
-  const [editDocNote, setEditDocNote] = useState("");
-  const [editExistingUrl, setEditExistingUrl] = useState<string | null>(null);
-  const [editNewFiles, setEditNewFiles] = useState<(File | null)[]>(Array(4).fill(null));
-  const [isSavingDoc, setIsSavingDoc] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState("GENERAL");
+  const [editNote, setEditNote] = useState("");
+  const [editExistingUrls, setEditExistingUrls] = useState<string[]>([]);
+  const [editExistingResourceTypes, setEditExistingResourceTypes] = useState<string[]>([]);
+  const [editNewFiles, setEditNewFiles] = useState<(File | null)[]>(Array(10).fill(null));
+  const [isSaving, setIsSaving] = useState(false);
 
-  // ── Preview ────────────────────────────────────────────────────────
-  const [docPreviewUrl, setDocPreviewUrl] = useState<string | null>(null);
+  // ── Attachments viewer ─────────────────────────────────────────────
+  const [viewingDoc, setViewingDoc] = useState<LocationDoc | null>(null);
 
-  // ── Filter state ───────────────────────────────────────────────────
+  // ── Media preview ──────────────────────────────────────────────────
+  const [previewItems, setPreviewItems] = useState<MediaPreviewItem[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+
+  // ── Filter ─────────────────────────────────────────────────────────
   const [docSearch, setDocSearch] = useState("");
   const [docTypeFilter, setDocTypeFilter] = useState("ALL");
 
@@ -82,26 +89,38 @@ export function DocumentsTab({
     t((`doc${(type || "GENERAL").charAt(0) + (type || "GENERAL").slice(1).toLowerCase()}`) as Parameters<typeof t>[0]);
 
   const openUploadDialog = () => {
-    setDocType("GENERAL");
-    setDocNote("");
-    setDocFiles(Array(10).fill(null));
-    setShowDocUploadDialog(true);
+    setUploadName("");
+    setUploadType("GENERAL");
+    setUploadNote("");
+    setUploadFiles(Array(10).fill(null));
+    setShowUploadDialog(true);
   };
 
   const closeUploadDialog = () => {
-    setShowDocUploadDialog(false);
-    setDocType("GENERAL");
-    setDocNote("");
-    setDocFiles(Array(10).fill(null));
+    setShowUploadDialog(false);
+    setUploadName("");
+    setUploadType("GENERAL");
+    setUploadNote("");
+    setUploadFiles(Array(10).fill(null));
   };
 
-  // ── Handlers ──────────────────────────────────────────────────────
-  const handleDocUploadConfirm = async () => {
-    const filesToUpload = docFiles.filter((f): f is File => f !== null);
-    if (filesToUpload.length === 0) return;
-    setIsDocUploading(true);
+  const handleUploadFilesChange = (files: (File | null)[]) => {
+    setUploadFiles(files);
+    if (!uploadName) {
+      const first = files.find((f) => f !== null);
+      if (first) setUploadName(first.name.replace(/\.[^.]+$/, ""));
+    }
+  };
+
+  const handleUploadConfirm = async () => {
+    const filesToUpload = uploadFiles.filter((f): f is File => f !== null);
+    if (filesToUpload.length === 0 || !uploadName.trim()) return;
+    setIsUploading(true);
     try {
       const locName = location?.name || "general";
+      const urls: string[] = [];
+      const resourceTypes: string[] = [];
+
       for (const file of filesToUpload) {
         const fd = new FormData();
         fd.append("file", file);
@@ -110,28 +129,87 @@ export function DocumentsTab({
         const r = await axiosInstance.post("/upload", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        await axiosInstance.post(`/locations/${branchId}/documents`, {
-          name: file.name,
-          url: r.data.url,
-          resourceType: r.data.resourceType || "raw",
-          type: docType,
-          notes: docNote.trim() || undefined,
-        });
+        urls.push(r.data.url);
+        resourceTypes.push(r.data.resourceType || "raw");
       }
+
+      const res = await axiosInstance.post(`/locations/${branchId}/documents`, {
+        name: uploadName.trim(),
+        urls,
+        resourceTypes,
+        type: uploadType,
+        notes: uploadNote.trim() || undefined,
+      });
+
+      setDocuments((prev) => [res.data.document, ...prev]);
       toast({ title: t("documentUploaded") });
-      const docsRes = await axiosInstance
-        .get(`/locations/${branchId}/documents`)
-        .catch(() => null);
-      if (docsRes) setDocuments(docsRes.data.documents);
       closeUploadDialog();
     } catch {
       toast({ title: t("documentUploadFailed"), variant: "destructive" });
     } finally {
-      setIsDocUploading(false);
+      setIsUploading(false);
     }
   };
 
-  const handleDocDelete = async (docId: string) => {
+  const openDocEdit = (doc: LocationDoc) => {
+    setEditingDoc(doc);
+    setEditName(doc.name);
+    setEditType(doc.type || "GENERAL");
+    setEditNote(doc.notes || "");
+    setEditExistingUrls([...(doc.urls ?? [])]);
+    setEditExistingResourceTypes([...(doc.resourceTypes ?? [])]);
+    setEditNewFiles(Array(10).fill(null));
+  };
+
+  const handleEditSave = async () => {
+    if (!editingDoc) return;
+    setIsSaving(true);
+    try {
+      const locName = location?.name || "general";
+      const newUrls: string[] = [];
+      const newResourceTypes: string[] = [];
+
+      for (const file of editNewFiles.filter((f): f is File => f !== null)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("locationName", locName);
+        fd.append("subfolder", "documents");
+        const r = await axiosInstance.post("/upload", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        newUrls.push(r.data.url);
+        newResourceTypes.push(r.data.resourceType || "raw");
+      }
+
+      const res = await axiosInstance.put(
+        `/locations/${branchId}/documents/${editingDoc.id}`,
+        {
+          name: editName.trim() || editingDoc.name,
+          notes: editNote,
+          type: editType,
+          urls: [...editExistingUrls, ...newUrls],
+          resourceTypes: [...editExistingResourceTypes, ...newResourceTypes],
+        }
+      );
+
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === editingDoc.id ? res.data.document : d))
+      );
+      toast({ title: t("documentUpdated") });
+      setEditingDoc(null);
+    } catch {
+      toast({ title: t("documentUpdateFailed"), variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const removeExistingAttachment = (index: number) => {
+    setEditExistingUrls((prev) => prev.filter((_, i) => i !== index));
+    setEditExistingResourceTypes((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDocDelete = async (docId: string, docName: string) => {
     if (!confirm(t("confirmDelete"))) return;
     try {
       await axiosInstance.delete(`/locations/${branchId}/documents/${docId}`);
@@ -142,67 +220,16 @@ export function DocumentsTab({
     }
   };
 
-  const openDocEdit = (doc: LocationDoc) => {
-    setEditingDoc(doc);
-    setEditDocName(doc.name);
-    setEditDocType(doc.type || "GENERAL");
-    setEditDocNote(doc.notes || "");
-    setEditExistingUrl(doc.url);
-    setEditNewFiles(Array(4).fill(null));
+  const openPreview = (doc: LocationDoc, startIndex: number) => {
+    const items: MediaPreviewItem[] = (doc.urls ?? []).map((url, i) => ({
+      url,
+      type: doc.resourceTypes[i] === "video" ? "video" : "image",
+      name: doc.name,
+    }));
+    setPreviewItems(items);
+    setPreviewIndex(startIndex);
   };
 
-  const handleDocEditSave = async () => {
-    if (!editingDoc) return;
-    setIsSavingDoc(true);
-    try {
-      const locName = location?.name || "general";
-
-      // 1. Existing file: update metadata or delete if removed
-      if (editExistingUrl !== null) {
-        const res = await axiosInstance.put(
-          `/locations/${branchId}/documents/${editingDoc.id}`,
-          { name: editDocName, notes: editDocNote, type: editDocType }
-        );
-        setDocuments((prev) =>
-          prev.map((d) => (d.id === editingDoc.id ? res.data.document : d))
-        );
-      } else {
-        await axiosInstance.delete(`/locations/${branchId}/documents/${editingDoc.id}`);
-        setDocuments((prev) => prev.filter((d) => d.id !== editingDoc.id));
-      }
-
-      // 2. Upload new files (if any)
-      const newFilesToUpload = editNewFiles.filter((f): f is File => f !== null);
-      for (const file of newFilesToUpload) {
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("locationName", locName);
-        fd.append("subfolder", "documents");
-        const r = await axiosInstance.post("/upload", fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        const newDocRes = await axiosInstance.post(`/locations/${branchId}/documents`, {
-          name: file.name,
-          url: r.data.url,
-          resourceType: r.data.resourceType || "raw",
-          type: editDocType,
-          notes: editDocNote.trim() || undefined,
-        });
-        setDocuments((prev) => [newDocRes.data.document, ...prev]);
-      }
-
-      toast({ title: t("documentUpdated") });
-      setEditingDoc(null);
-    } catch {
-      toast({ title: t("documentUpdateFailed"), variant: "destructive" });
-    } finally {
-      setIsSavingDoc(false);
-    }
-  };
-
-  const hasFiles = docFiles.some((f) => f !== null);
-
-  // ── Filtered documents ─────────────────────────────────────────────
   const filteredDocuments = useMemo(() => {
     const q = docSearch.trim().toLowerCase();
     return documents.filter((d) => {
@@ -212,6 +239,8 @@ export function DocumentsTab({
     });
   }, [documents, docSearch, docTypeFilter]);
 
+  const hasFiles = uploadFiles.some((f) => f !== null);
+
   return (
     <>
       <div className="space-y-4">
@@ -220,12 +249,11 @@ export function DocumentsTab({
             <h2 className="text-base font-semibold">{t("documents")}</h2>
             <p className="text-sm text-muted-foreground">{t("documentsDesc")}</p>
           </div>
-          <Button onClick={openUploadDialog} disabled={isDocUploading}>
-            {isDocUploading ? t("uploading") : `+ ${t("uploadDocument")}`}
+          <Button onClick={openUploadDialog} disabled={isUploading}>
+            {isUploading ? t("uploading") : `+ ${t("uploadDocument")}`}
           </Button>
         </div>
 
-        {/* ── Filter bar ── */}
         {documents.length > 0 && (
           <div className="flex flex-wrap gap-2">
             <div className="relative flex-1 min-w-40">
@@ -245,15 +273,11 @@ export function DocumentsTab({
               )}
             </div>
             <Select value={docTypeFilter} onValueChange={setDocTypeFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">{t("allTypes")}</SelectItem>
                 {DOC_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {docTypeLabel(type)}
-                  </SelectItem>
+                  <SelectItem key={type} value={type}>{docTypeLabel(type)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -271,22 +295,14 @@ export function DocumentsTab({
         ) : (
           <div className="rounded-xl border overflow-hidden">
             {filteredDocuments.map((doc) => {
-              const isImage = doc.resourceType === "image";
+              const docUrls = doc.urls ?? [];
+              const docResourceTypes = doc.resourceTypes ?? [];
+              const attachCount = docUrls.length;
               return (
                 <div key={doc.id} className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0 hover:bg-muted/40">
-                  <div className="shrink-0 text-xl">
-                    {isImage ? "🖼️" : "📄"}
-                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <a
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium hover:underline truncate"
-                      >
-                        {doc.name}
-                      </a>
+                      <span className="text-sm font-medium truncate">{doc.name}</span>
                       <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${DOC_TYPE_COLORS[doc.type || "GENERAL"] || DOC_TYPE_COLORS.OTHER}`}>
                         {docTypeLabel(doc.type)}
                       </span>
@@ -299,27 +315,25 @@ export function DocumentsTab({
                       <p className="text-xs text-muted-foreground mt-1 italic whitespace-pre-wrap">{doc.notes}</p>
                     )}
                   </div>
-                  {isImage && (
+                  {attachCount > 0 && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setDocPreviewUrl(doc.url)}
+                      className="h-7 px-2 text-muted-foreground hover:text-foreground shrink-0"
+                      onClick={() => setViewingDoc(doc)}
                     >
-                      👁
+                      <Paperclip className="h-3.5 w-3.5" />
+                      <span className="ml-1 text-xs tabular-nums">{attachCount}</span>
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => openDocEdit(doc)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => openDocEdit(doc)}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-destructive hover:text-destructive"
-                    onClick={() => handleDocDelete(doc.id)}
+                    onClick={() => handleDocDelete(doc.id, doc.name)}
                   >
                     🗑️
                   </Button>
@@ -330,172 +344,200 @@ export function DocumentsTab({
         )}
       </div>
 
-      {/* ── Image Preview Dialog ── */}
-      {docPreviewUrl && (
-        <Dialog open={!!docPreviewUrl} onOpenChange={() => setDocPreviewUrl(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{t("previewImage")}</DialogTitle>
-            </DialogHeader>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={docPreviewUrl}
-              alt="preview"
-              className="w-full rounded-lg object-contain max-h-[70vh]"
-            />
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* ── Attachments Viewer Dialog ── */}
+      <Dialog open={!!viewingDoc} onOpenChange={(open) => { if (!open) setViewingDoc(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{viewingDoc?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {viewingDoc && (() => {
+              const vUrls = viewingDoc.urls ?? [];
+              const vTypes = viewingDoc.resourceTypes ?? [];
+              return (
+                <>
+                  {vUrls.some((_, i) => vTypes[i] === "image") && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">{t("previewImage")}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {vUrls.map((url, i) => {
+                          if (vTypes[i] !== "image") return null;
+                          return (
+                            <button key={i} onClick={() => openPreview(viewingDoc, i)} className="aspect-square rounded-lg overflow-hidden border hover:opacity-80 transition-opacity">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={url} alt="" className="w-full h-full object-cover" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {vUrls.some((_, i) => vTypes[i] === "video") && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">{t("files")}</p>
+                      <div className="space-y-1">
+                        {vUrls.map((url, i) => {
+                          if (vTypes[i] !== "video") return null;
+                          return (
+                            <button key={i} onClick={() => openPreview(viewingDoc, i)} className="flex items-center gap-2 text-sm text-primary hover:underline">
+                              <span>🎬</span>
+                              <span className="truncate">{decodeURIComponent(url.split("/").pop() || `Video ${i + 1}`)}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {vUrls.some((_, i) => vTypes[i] === "raw") && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">{t("files")}</p>
+                      <div className="space-y-1">
+                        {vUrls.map((url, i) => {
+                          if (vTypes[i] !== "raw") return null;
+                          return (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
+                              <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                              <span className="truncate">{decodeURIComponent(url.split("/").pop() || `File ${i + 1}`)}</span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* ── Document Upload Dialog ── */}
-      <Dialog open={showDocUploadDialog} onOpenChange={(open) => { if (!open) closeUploadDialog(); }}>
+      {/* ── Media Preview Dialog ── */}
+      <MediaPreviewDialog
+        items={previewItems}
+        initialIndex={previewIndex}
+        open={previewItems.length > 0}
+        onClose={() => setPreviewItems([])}
+      />
+
+      {/* ── Upload Dialog ── */}
+      <Dialog open={showUploadDialog} onOpenChange={(open) => { if (!open) closeUploadDialog(); }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("uploadDocument")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
-            {/* Type */}
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("fileName")}</label>
+              <Input value={uploadName} onChange={(e) => setUploadName(e.target.value)} placeholder={t("documentNamePlaceholder")} />
+            </div>
             <div>
               <label className="text-sm font-medium mb-1 block">{t("documentType")}</label>
-              <Select value={docType} onValueChange={setDocType}>
+              <Select value={uploadType} onValueChange={setUploadType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {DOC_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {docTypeLabel(type)}
-                    </SelectItem>
+                    <SelectItem key={type} value={type}>{docTypeLabel(type)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            {/* Note */}
             <div>
               <label className="text-sm font-medium mb-1 block">
                 {t("documentNote")}{" "}
                 <span className="text-muted-foreground font-normal text-xs">({t("optional")})</span>
               </label>
-              <Textarea
-                value={docNote}
-                onChange={(e) => setDocNote(e.target.value)}
-                placeholder={t("documentNotePlaceholder")}
-                rows={2}
-              />
+              <Textarea value={uploadNote} onChange={(e) => setUploadNote(e.target.value)} placeholder={t("documentNotePlaceholder")} rows={2} />
             </div>
-            {/* Attachments */}
             <div>
               <label className="text-sm font-medium mb-2 block">{t("attachments")}</label>
               <AttachmentSlots
-                files={docFiles}
-                onChange={setDocFiles}
-                accept="image/*,.pdf,.doc,.docx,.xlsx,.xls,.ppt,.pptx,.txt,.zip,.rar"
+                files={uploadFiles}
+                onChange={handleUploadFilesChange}
+                accept="image/*,video/*,.pdf,.doc,.docx,.xlsx,.xls,.ppt,.pptx,.txt,.zip,.rar,.csv"
+                maxSlots={10}
               />
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" onClick={closeUploadDialog} disabled={isDocUploading}>
-                {t("cancel")}
-              </Button>
-              <Button onClick={handleDocUploadConfirm} disabled={isDocUploading || !hasFiles}>
-                {isDocUploading ? t("uploading") : t("upload")}
+              <Button variant="outline" onClick={closeUploadDialog} disabled={isUploading}>{t("cancel")}</Button>
+              <Button onClick={handleUploadConfirm} disabled={isUploading || !hasFiles || !uploadName.trim()}>
+                {isUploading ? t("uploading") : t("upload")}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* ── Document Edit Dialog ── */}
+      {/* ── Edit Dialog ── */}
       <Dialog open={!!editingDoc} onOpenChange={(open) => { if (!open) setEditingDoc(null); }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("editDocument")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
-            {/* File name (only when existing file is kept) */}
-            {editExistingUrl !== null && (
-              <div>
-                <label className="text-sm font-medium mb-1 block">{t("fileName")}</label>
-                <Input
-                  value={editDocName}
-                  onChange={(e) => setEditDocName(e.target.value)}
-                />
-              </div>
-            )}
-            {/* Type */}
+            <div>
+              <label className="text-sm font-medium mb-1 block">{t("fileName")}</label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
             <div>
               <label className="text-sm font-medium mb-1 block">{t("documentType")}</label>
-              <Select value={editDocType} onValueChange={setEditDocType}>
+              <Select value={editType} onValueChange={setEditType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {DOC_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {docTypeLabel(type)}
-                    </SelectItem>
+                    <SelectItem key={type} value={type}>{docTypeLabel(type)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            {/* Note */}
             <div>
               <label className="text-sm font-medium mb-1 block">
                 {t("documentNote")}{" "}
                 <span className="text-muted-foreground font-normal text-xs">({t("optional")})</span>
               </label>
-              <Textarea
-                value={editDocNote}
-                onChange={(e) => setEditDocNote(e.target.value)}
-                placeholder={t("documentNotePlaceholder")}
-                rows={2}
-              />
+              <Textarea value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder={t("documentNotePlaceholder")} rows={2} />
             </div>
-            {/* Attachments */}
             <div>
               <label className="text-sm font-medium mb-2 block">{t("attachments")}</label>
               <div className="flex gap-2 flex-wrap">
-                {/* Existing file slot */}
-                {editExistingUrl !== null && (
-                  <div className="relative w-14 h-14 shrink-0">
-                    <div className="w-14 h-14 rounded-lg border overflow-hidden">
-                      {editingDoc?.resourceType === "image" ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={editExistingUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-muted gap-0.5 p-1">
-                          <span className="text-base leading-none">📄</span>
-                          <span className="text-[8px] text-muted-foreground text-center line-clamp-2 leading-tight break-all">
-                            {editDocName}
-                          </span>
-                        </div>
-                      )}
+                {editExistingUrls.map((url, i) => {
+                  const rType = editExistingResourceTypes[i] || "raw";
+                  const fileName = decodeURIComponent(url.split("/").pop() || `File ${i + 1}`);
+                  return (
+                    <div key={i} className="relative w-14 h-14 shrink-0">
+                      <div className="w-14 h-14 rounded-lg border overflow-hidden">
+                        {rType === "image" ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-muted gap-0.5 p-1">
+                            <span className="text-base leading-none">{rType === "video" ? "🎬" : "📄"}</span>
+                            <span className="text-[8px] text-muted-foreground text-center line-clamp-2 leading-tight break-all">{fileName}</span>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeExistingAttachment(i)}
+                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive text-white text-[11px] font-bold flex items-center justify-center leading-none shadow hover:bg-destructive/80 transition-colors z-10"
+                        aria-label="Remove"
+                      >
+                        ×
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setEditExistingUrl(null)}
-                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive text-white text-[11px] font-bold flex items-center justify-center leading-none shadow hover:bg-destructive/80 transition-colors z-10"
-                      aria-label="Remove file"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-                {/* New file slots */}
+                  );
+                })}
                 <AttachmentSlots
                   files={editNewFiles}
                   onChange={setEditNewFiles}
-                  maxSlots={editExistingUrl !== null ? 4 : 5}
-                  accept="image/*,.pdf,.doc,.docx,.xlsx,.xls,.ppt,.pptx,.txt,.zip,.rar"
+                  maxSlots={Math.max(1, 10 - editExistingUrls.length)}
+                  accept="image/*,video/*,.pdf,.doc,.docx,.xlsx,.xls,.ppt,.pptx,.txt,.zip,.rar,.csv"
                 />
               </div>
-              {editExistingUrl === null && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
-                  {t("existingFileRemoved")}
-                </p>
-              )}
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" onClick={() => setEditingDoc(null)} disabled={isSavingDoc}>
-                {t("cancel")}
-              </Button>
-              <Button onClick={handleDocEditSave} disabled={isSavingDoc}>
-                {isSavingDoc ? t("uploading") : t("saveChanges")}
+              <Button variant="outline" onClick={() => setEditingDoc(null)} disabled={isSaving}>{t("cancel")}</Button>
+              <Button onClick={handleEditSave} disabled={isSaving}>
+                {isSaving ? t("uploading") : t("saveChanges")}
               </Button>
             </div>
           </div>

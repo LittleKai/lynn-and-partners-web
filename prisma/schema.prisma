@@ -183,8 +183,8 @@ model LocationDocument {
   name           String
   type           String?  @default("GENERAL") // "GENERAL" | "CONTRACT" | "INVOICE" | "REPORT" | "PERMIT" | "OTHER"
   notes          String?
-  url            String
-  resourceType   String   @default("raw") // "image" | "raw"
+  urls           String[] // array of uploaded file URLs
+  resourceTypes  String[] // parallel array: "image" | "video" | "raw"
   uploadedById   String   @db.ObjectId
   uploadedByName String?
   uploadedAt     DateTime @default(now()) @db.Date

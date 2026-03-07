@@ -3,7 +3,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
-import { ImagePreviewDialog } from "@/components/ui/image-preview-dialog"
+import { MediaPreviewDialog, type MediaPreviewItem } from "@/components/ui/media-preview-dialog"
 
 const MAX_SLOTS = 5
 
@@ -26,19 +26,24 @@ export function AttachmentSlots({
   const [error, setError] = React.useState<string | null>(null)
   const [previewIndex, setPreviewIndex] = React.useState<number | null>(null)
 
-  // Collect only image entries for navigation
-  const imageEntries = React.useMemo(
+  // Collect image and video entries for preview navigation
+  const mediaEntries = React.useMemo(
     () =>
       files
         .map((f, slotIndex) => ({ f, slotIndex }))
         .filter((x): x is { f: File; slotIndex: number } =>
-          x.f !== null && x.f.type.startsWith("image/")
+          x.f !== null && (x.f.type.startsWith("image/") || x.f.type.startsWith("video/"))
         ),
     [files]
   )
-  const imageUrls = React.useMemo(
-    () => imageEntries.map(({ f }) => URL.createObjectURL(f)),
-    [imageEntries]
+  const mediaItems = React.useMemo<MediaPreviewItem[]>(
+    () =>
+      mediaEntries.map(({ f }) => ({
+        url: URL.createObjectURL(f),
+        type: f.type.startsWith("video/") ? "video" : "image",
+        name: f.name,
+      })),
+    [mediaEntries]
   )
 
   const handleFileChange = (i: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,6 +89,8 @@ export function AttachmentSlots({
         {Array.from({ length: maxSlots }, (_, i) => {
           const file = files[i] ?? null
           const isImage = file?.type.startsWith("image/")
+          const isVideoFile = file?.type.startsWith("video/")
+          const isPreviewable = isImage || isVideoFile
 
           return (
             <div key={i} className="relative w-14 h-14 shrink-0">
@@ -91,12 +98,12 @@ export function AttachmentSlots({
                 <div
                   className={cn(
                     "w-14 h-14 rounded-lg border overflow-hidden",
-                    isImage ? "cursor-pointer" : "cursor-default"
+                    isPreviewable ? "cursor-pointer" : "cursor-default"
                   )}
                   onClick={() => {
-                    if (isImage) {
-                      const imgIdx = imageEntries.findIndex((e) => e.slotIndex === i)
-                      if (imgIdx !== -1) setPreviewIndex(imgIdx)
+                    if (isPreviewable) {
+                      const mediaIdx = mediaEntries.findIndex((e) => e.slotIndex === i)
+                      if (mediaIdx !== -1) setPreviewIndex(mediaIdx)
                     }
                   }}
                 >
@@ -107,6 +114,13 @@ export function AttachmentSlots({
                       alt={file.name}
                       className="w-full h-full object-cover"
                     />
+                  ) : isVideoFile ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-muted gap-0.5 p-1">
+                      <span className="text-base leading-none">🎬</span>
+                      <span className="text-[8px] text-muted-foreground text-center line-clamp-2 leading-tight break-all">
+                        {file.name}
+                      </span>
+                    </div>
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center bg-muted gap-0.5 p-1">
                       <span className="text-base leading-none">📄</span>
@@ -151,8 +165,8 @@ export function AttachmentSlots({
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
-      <ImagePreviewDialog
-        images={imageUrls}
+      <MediaPreviewDialog
+        items={mediaItems}
         initialIndex={previewIndex ?? 0}
         open={previewIndex !== null}
         onClose={() => setPreviewIndex(null)}

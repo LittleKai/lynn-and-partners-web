@@ -51,50 +51,15 @@ export function useLocationInventory() {
   }, [isInitializing, isLoggedIn, branchId]);
 
   const loadData = async () => {
+    // ── Phase 1: critical data — unblock UI immediately ────────────────
     try {
-      const [
-        locRes,
-        productsRes,
-        txRes,
-        expRes,
-        catRes,
-        supRes,
-        meLocRes,
-        custRes,
-        guestRes,
-        ordersRes,
-        docsRes,
-        roomsRes,
-        announcementsRes,
-      ] = await Promise.allSettled([
+      const [locRes, productsRes, meLocRes] = await Promise.allSettled([
         axiosInstance.get(`/admin/locations/${branchId}`),
         axiosInstance.get(`/locations/${branchId}/products`),
-        axiosInstance.get(`/locations/${branchId}/transactions`),
-        axiosInstance.get(`/locations/${branchId}/expenses`),
-        axiosInstance.get(`/locations/${branchId}/categories`),
-        axiosInstance.get(`/locations/${branchId}/suppliers`),
         axiosInstance.get("/users/me/locations"),
-        axiosInstance.get(`/locations/${branchId}/customers`),
-        axiosInstance.get(`/locations/${branchId}/guests`),
-        axiosInstance.get(`/locations/${branchId}/orders`),
-        axiosInstance.get(`/locations/${branchId}/documents`),
-        axiosInstance.get(`/locations/${branchId}/rooms`),
-        axiosInstance.get(`/locations/${branchId}/announcements`),
       ]);
-
       if (locRes.status === "fulfilled") setLocation(locRes.value.data.location);
       if (productsRes.status === "fulfilled") setProducts(productsRes.value.data.products);
-      if (txRes.status === "fulfilled") setTransactions(txRes.value.data.transactions);
-      if (expRes.status === "fulfilled") setExpenses(expRes.value.data.expenses);
-      if (catRes.status === "fulfilled") setCategories(catRes.value.data.categories);
-      if (supRes.status === "fulfilled") setSuppliers(supRes.value.data.suppliers);
-      if (custRes.status === "fulfilled") setCustomers(custRes.value.data.customers);
-      if (guestRes.status === "fulfilled") setGuests(guestRes.value.data.guests);
-      if (ordersRes.status === "fulfilled") setOrders(ordersRes.value.data.orders);
-      if (docsRes.status === "fulfilled") setDocuments(docsRes.value.data.documents);
-      if (roomsRes.status === "fulfilled") setRooms(roomsRes.value.data.rooms);
-      if (announcementsRes.status === "fulfilled")
-        setAnnouncements(announcementsRes.value.data.announcements);
       if (meLocRes.status === "fulfilled") {
         const loc = meLocRes.value.data.locations?.find(
           (l: { id: string; permissions?: string[] }) => l.id === branchId
@@ -104,8 +69,33 @@ export function useLocationInventory() {
     } catch {
       // silent
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // show UI as soon as Items tab is ready
     }
+
+    // ── Phase 2: background data — fills remaining tabs silently ───────
+    Promise.allSettled([
+      axiosInstance.get(`/locations/${branchId}/transactions`),
+      axiosInstance.get(`/locations/${branchId}/expenses`),
+      axiosInstance.get(`/locations/${branchId}/categories`),
+      axiosInstance.get(`/locations/${branchId}/suppliers`),
+      axiosInstance.get(`/locations/${branchId}/customers`),
+      axiosInstance.get(`/locations/${branchId}/guests`),
+      axiosInstance.get(`/locations/${branchId}/orders`),
+      axiosInstance.get(`/locations/${branchId}/documents`),
+      axiosInstance.get(`/locations/${branchId}/rooms`),
+      axiosInstance.get(`/locations/${branchId}/announcements`),
+    ]).then(([txRes, expRes, catRes, supRes, custRes, guestRes, ordersRes, docsRes, roomsRes, announcementsRes]) => {
+      if (txRes.status === "fulfilled") setTransactions(txRes.value.data.transactions);
+      if (expRes.status === "fulfilled") setExpenses(expRes.value.data.expenses);
+      if (catRes.status === "fulfilled") setCategories(catRes.value.data.categories);
+      if (supRes.status === "fulfilled") setSuppliers(supRes.value.data.suppliers);
+      if (custRes.status === "fulfilled") setCustomers(custRes.value.data.customers);
+      if (guestRes.status === "fulfilled") setGuests(guestRes.value.data.guests);
+      if (ordersRes.status === "fulfilled") setOrders(ordersRes.value.data.orders);
+      if (docsRes.status === "fulfilled") setDocuments(docsRes.value.data.documents);
+      if (roomsRes.status === "fulfilled") setRooms(roomsRes.value.data.rooms);
+      if (announcementsRes.status === "fulfilled") setAnnouncements(announcementsRes.value.data.announcements);
+    });
   };
 
   const canManageProducts = useMemo(() => {

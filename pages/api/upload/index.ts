@@ -8,6 +8,7 @@ export const config = {
 };
 
 const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff"];
+const VIDEO_EXTENSIONS = ["mp4", "mov", "avi", "mkv", "wmv", "flv", "webm", "m4v", "3gp", "ogv", "mpg", "mpeg"];
 
 function getExtension(filename: string): string {
   return filename.split(".").pop()?.toLowerCase() || "";
@@ -15,6 +16,10 @@ function getExtension(filename: string): string {
 
 function isImage(filename: string): boolean {
   return IMAGE_EXTENSIONS.includes(getExtension(filename));
+}
+
+function isVideo(filename: string): boolean {
+  return VIDEO_EXTENSIONS.includes(getExtension(filename));
 }
 
 /**
@@ -51,51 +56,7 @@ function buildDropboxPath(
   return `${baseFolder}/${safeLocation}/${year}/${month}/${day}-${safeName}`;
 }
 
-// ─── Cloudinary upload ──────────────────────────────────────────────
-async function uploadToCloudinary(
-  filePath: string,
-  originalName: string,
-  locationName: string,
-  subfolder?: string
-): Promise<{ url: string; publicId: string; resourceType: string }> {
-  const cloudinary = (await import("@/utils/cloudinary")).default;
-  const imageUpload = isImage(originalName);
-  const safeLocation = locationName.replace(/[^a-zA-Z0-9-_]/g, "_") || "general";
-  const safeSubfolder = subfolder
-    ? subfolder.replace(/[^a-zA-Z0-9_-]/g, "_")
-    : null;
-
-  const baseFolder = safeSubfolder
-    ? `lynn-partners/${safeLocation}/${safeSubfolder}`
-    : `lynn-partners/${safeLocation}`;
-
-  let result;
-  if (imageUpload) {
-    result = await cloudinary.uploader.upload(filePath, {
-      resource_type: "image",
-      transformation: [
-        { width: 1200, crop: "limit" },
-        { quality: "auto:good" },
-      ],
-      folder: baseFolder,
-    });
-  } else {
-    result = await cloudinary.uploader.upload(filePath, {
-      resource_type: "raw",
-      folder: safeSubfolder ? baseFolder : `${baseFolder}/docs`,
-      use_filename: true,
-      unique_filename: true,
-    });
-  }
-
-  return {
-    url: result.secure_url,
-    publicId: result.public_id,
-    resourceType: result.resource_type,
-  };
-}
-
-// ─── Dropbox upload ──────────────────────────────────────────────────
+// ─── Upload to Dropbox ───────────────────────────────────────────────
 async function uploadToDropbox(
   filePath: string,
   originalName: string,
@@ -108,8 +69,9 @@ async function uploadToDropbox(
 
   const dbx = getDropboxClient();
   const imageUpload = isImage(originalName);
+  const videoUpload = isVideo(originalName);
 
-  // Resize images with sharp before uploading
+  // Resize images with sharp before uploading; videos and other files upload as-is
   let fileBuffer: Buffer;
   if (imageUpload) {
     try {
@@ -160,7 +122,7 @@ async function uploadToDropbox(
   return {
     url: toDirectUrl(sharedLink),
     publicId: dropboxPath,
-    resourceType: imageUpload ? "image" : "raw",
+    resourceType: imageUpload ? "image" : videoUpload ? "video" : "raw",
   };
 }
 
@@ -178,7 +140,7 @@ export default async function handler(
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const form = formidable({ maxFileSize: 20 * 1024 * 1024 }); // 20MB
+  const form = formidable({ maxFileSize: 500 * 1024 * 1024 }); // 500MB
 
   try {
     const [fields, files] = await form.parse(req);
@@ -191,22 +153,10 @@ export default async function handler(
     const file = fileField[0] as File;
     const originalName = file.originalFilename || "upload";
 
-    // locationName gửi từ client, fallback về "general"
-    const locationName =
-      (fields as Fields).locationName?.[0] || "general";
-
-    // optional subfolder (e.g. "documents") for organised storage
+    const locationName = (fields as Fields).locationName?.[0] || "general";
     const subfolder = (fields as Fields).subfolder?.[0] || undefined;
 
-    const provider = process.env.UPLOAD_PROVIDER || "cloudinary";
-
-    let result: { url: string; publicId: string; resourceType: string };
-
-    if (provider === "dropbox") {
-      result = await uploadToDropbox(file.filepath, originalName, locationName, subfolder);
-    } else {
-      result = await uploadToCloudinary(file.filepath, originalName, locationName, subfolder);
-    }
+    const result = await uploadToDropbox(file.filepath, originalName, locationName, subfolder);
 
     return res.status(200).json(result);
   } catch (error) {

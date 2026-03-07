@@ -95,8 +95,8 @@ export interface LocationDoc {
   name: string;
   type: string | null;
   notes: string | null;
-  url: string;
-  resourceType: string;
+  urls: string[];
+  resourceTypes: string[];
   uploadedByName: string | null;
   uploadedAt: string;
 }
