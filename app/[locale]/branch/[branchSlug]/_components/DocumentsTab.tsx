@@ -153,8 +153,13 @@ export function DocumentsTab({
       setDocuments((prev) => [res.data.document, ...prev]);
       toast({ title: t("documentUploaded") });
       closeUploadDialog();
-    } catch {
-      toast({ title: t("documentUploadFailed"), variant: "destructive" });
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string; detail?: string } } };
+      toast({
+        title: t("documentUploadFailed"),
+        description: e.response?.data?.detail || e.response?.data?.error,
+        variant: "destructive",
+      });
     } finally {
       setIsUploading(false);
     }
@@ -209,8 +214,13 @@ export function DocumentsTab({
       );
       toast({ title: t("documentUpdated") });
       setEditingDoc(null);
-    } catch {
-      toast({ title: t("documentUpdateFailed"), variant: "destructive" });
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string; detail?: string } } };
+      toast({
+        title: t("documentUpdateFailed"),
+        description: e.response?.data?.detail || e.response?.data?.error,
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }
