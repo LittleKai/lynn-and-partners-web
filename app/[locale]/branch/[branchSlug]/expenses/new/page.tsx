@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
+import { directUpload } from "@/utils/directUpload";
 import { extractBranchId } from "@/utils/slugify";
 import { formatWithDots, parseDots } from "@/utils/formatNumber";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export default function NewExpensePage() {
   });
   const [files, setFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
 
   useEffect(() => {
     axiosInstance
@@ -62,18 +64,10 @@ export default function NewExpensePage() {
     const imageUrls: string[] = [];
     const fileUrls: string[] = [];
     for (const file of files.filter((f): f is File => f !== null)) {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("locationName", locName);
       try {
-        const res = await axiosInstance.post("/upload", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        if (res.data.resourceType === "image") {
-          imageUrls.push(res.data.url);
-        } else {
-          fileUrls.push(res.data.url);
-        }
+        const r = await directUpload(file, locName, undefined, (p) => setUploadPct(p.percent));
+        if (r.resourceType === "image") imageUrls.push(r.url);
+        else fileUrls.push(r.url);
       } catch {
         // continue
       }
@@ -85,6 +79,7 @@ export default function NewExpensePage() {
     e.preventDefault();
     if (!form.amount) return;
     setIsSubmitting(true);
+    setUploadPct(0);
 
     try {
       const { imageUrls, fileUrls } = await uploadFiles(locationName);
@@ -108,6 +103,7 @@ export default function NewExpensePage() {
       });
     } finally {
       setIsSubmitting(false);
+      setUploadPct(0);
     }
   };
 
@@ -197,7 +193,7 @@ export default function NewExpensePage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? t("submitting") : t("addExpense")}
+            {isSubmitting ? (uploadPct > 0 ? `${uploadPct}%` : t("submitting")) : t("addExpense")}
           </Button>
         </form>
       </main>

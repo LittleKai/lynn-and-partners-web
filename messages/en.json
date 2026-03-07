@@ -185,7 +185,7 @@
     "noDocuments": "No documents uploaded yet.",
     "documentUploaded": "File uploaded successfully.",
     "documentUploadFailed": "Failed to upload file.",
-    "documentDeleted": "File deleted.",
+"documentDeleted": "File deleted.",
     "documentDeleteFailed": "Failed to delete file.",
     "documentUpdated": "File updated.",
     "documentUpdateFailed": "Failed to update file.",

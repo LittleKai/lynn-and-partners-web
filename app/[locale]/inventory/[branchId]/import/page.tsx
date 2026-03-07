@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/app/authContext";
 import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
+import { directUpload } from "@/utils/directUpload";
 import { formatWithDots, parseDots } from "@/utils/formatNumber";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,7 @@ export default function ImportPage() {
   const [notes, setNotes] = useState("");
   const [files, setFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
 
   // Product picker dialog
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -241,15 +243,10 @@ export default function ImportPage() {
     const imageUrls: string[] = [];
     const fileUrls: string[] = [];
     for (const file of files.filter((f): f is File => f !== null)) {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("locationName", locName);
       try {
-        const res = await axiosInstance.post("/upload", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        if (res.data.resourceType === "image") imageUrls.push(res.data.url);
-        else fileUrls.push(res.data.url);
+        const r = await directUpload(file, locName, undefined, (p) => setUploadPct(p.percent));
+        if (r.resourceType === "image") imageUrls.push(r.url);
+        else fileUrls.push(r.url);
       } catch {
         // continue
       }
@@ -275,6 +272,7 @@ export default function ImportPage() {
     }
 
     setIsSubmitting(true);
+    setUploadPct(0);
     try {
       const { imageUrls, fileUrls } = await uploadFiles(locationName);
       await Promise.all(
@@ -305,6 +303,7 @@ export default function ImportPage() {
       });
     } finally {
       setIsSubmitting(false);
+      setUploadPct(0);
     }
   };
 
@@ -547,7 +546,7 @@ export default function ImportPage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? t("submitting") : t("confirmImport")}
+            {isSubmitting ? (uploadPct > 0 ? `${uploadPct}%` : t("submitting")) : t("confirmImport")}
           </Button>
         </form>
       </main>

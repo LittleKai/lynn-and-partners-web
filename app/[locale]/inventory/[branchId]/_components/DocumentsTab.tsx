@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
+import { directUpload } from "@/utils/directUpload";
 import { reportDevError } from "@/utils/reportDevError";
 import { AttachmentSlots } from "@/components/ui/attachment-slots";
 import { MediaPreviewDialog, type MediaPreviewItem } from "@/components/ui/media-preview-dialog";
@@ -63,6 +64,7 @@ export function DocumentsTab({
   const [uploadNote, setUploadNote] = useState("");
   const [uploadFiles, setUploadFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ file: number; total: number; pct: number } | null>(null);
 
   // ── Edit dialog ────────────────────────────────────────────────────
   const [editingDoc, setEditingDoc] = useState<LocationDoc | null>(null);
@@ -117,21 +119,19 @@ export function DocumentsTab({
     const filesToUpload = uploadFiles.filter((f): f is File => f !== null);
     if (filesToUpload.length === 0 || !uploadName.trim()) return;
     setIsUploading(true);
+    setUploadProgress(null);
     try {
       const locName = location?.name || "general";
       const urls: string[] = [];
       const resourceTypes: string[] = [];
 
-      for (const file of filesToUpload) {
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("locationName", locName);
-        fd.append("subfolder", "documents");
-        const r = await axiosInstance.post("/upload", fd, {
-          headers: { "Content-Type": "multipart/form-data" },
+      for (let idx = 0; idx < filesToUpload.length; idx++) {
+        const file = filesToUpload[idx];
+        const { url, resourceType } = await directUpload(file, locName, "documents", (p) => {
+          setUploadProgress({ file: idx + 1, total: filesToUpload.length, pct: p.percent });
         });
-        urls.push(r.data.url);
-        resourceTypes.push(r.data.resourceType || "raw");
+        urls.push(url);
+        resourceTypes.push(resourceType || "raw");
       }
 
       const res = await axiosInstance.post(`/locations/${branchId}/documents`, {
@@ -147,8 +147,8 @@ export function DocumentsTab({
       closeUploadDialog();
     } catch (err: unknown) {
       reportDevError("DocumentsTab.handleUploadConfirm", err);
-      const e = err as { response?: { data?: { error?: unknown; detail?: unknown } } };
-      const rawDesc = e.response?.data?.detail ?? e.response?.data?.error;
+      const e = err as { response?: { data?: { error?: unknown; detail?: unknown } }; message?: string };
+      const rawDesc = e.response?.data?.detail ?? e.response?.data?.error ?? e.message;
       const desc = typeof rawDesc === "string" ? rawDesc : undefined;
       toast({
         title: t("documentUploadFailed"),
@@ -157,6 +157,7 @@ export function DocumentsTab({
       });
     } finally {
       setIsUploading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -172,22 +173,21 @@ export function DocumentsTab({
 
   const handleEditSave = async () => {
     if (!editingDoc) return;
+    const newFiles = editNewFiles.filter((f): f is File => f !== null);
     setIsSaving(true);
+    setUploadProgress(null);
     try {
       const locName = location?.name || "general";
       const newUrls: string[] = [];
       const newResourceTypes: string[] = [];
 
-      for (const file of editNewFiles.filter((f): f is File => f !== null)) {
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("locationName", locName);
-        fd.append("subfolder", "documents");
-        const r = await axiosInstance.post("/upload", fd, {
-          headers: { "Content-Type": "multipart/form-data" },
+      for (let idx = 0; idx < newFiles.length; idx++) {
+        const file = newFiles[idx];
+        const { url, resourceType } = await directUpload(file, locName, "documents", (p) => {
+          setUploadProgress({ file: idx + 1, total: newFiles.length, pct: p.percent });
         });
-        newUrls.push(r.data.url);
-        newResourceTypes.push(r.data.resourceType || "raw");
+        newUrls.push(url);
+        newResourceTypes.push(resourceType || "raw");
       }
 
       const res = await axiosInstance.put(
@@ -208,8 +208,8 @@ export function DocumentsTab({
       setEditingDoc(null);
     } catch (err: unknown) {
       reportDevError("DocumentsTab.handleEditSave", err);
-      const e = err as { response?: { data?: { error?: unknown; detail?: unknown } } };
-      const rawDesc = e.response?.data?.detail ?? e.response?.data?.error;
+      const e = err as { response?: { data?: { error?: unknown; detail?: unknown } }; message?: string };
+      const rawDesc = e.response?.data?.detail ?? e.response?.data?.error ?? e.message;
       const desc = typeof rawDesc === "string" ? rawDesc : undefined;
       toast({
         title: t("documentUpdateFailed"),
@@ -218,6 +218,7 @@ export function DocumentsTab({
       });
     } finally {
       setIsSaving(false);
+      setUploadProgress(null);
     }
   };
 
@@ -474,6 +475,19 @@ export function DocumentsTab({
                 maxSlots={10}
               />
             </div>
+            {uploadProgress && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  Đang tải lên {uploadProgress.file}/{uploadProgress.total}... {uploadProgress.pct}%
+                </p>
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-200"
+                    style={{ width: `${uploadProgress.pct}%` }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="outline" onClick={closeUploadDialog} disabled={isUploading}>{t("cancel")}</Button>
               <Button onClick={handleUploadConfirm} disabled={isUploading || !hasFiles || !uploadName.trim()}>

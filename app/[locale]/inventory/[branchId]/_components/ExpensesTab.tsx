@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
+import { directUpload } from "@/utils/directUpload";
 import { formatWithDots, parseDots } from "@/utils/formatNumber";
 import { AttachmentSlots } from "@/components/ui/attachment-slots";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ export function ExpensesTab({
   });
   const [expenseFiles, setExpenseFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
+  const [expenseUploadPct, setExpenseUploadPct] = useState(0);
 
   // ── Edit dialog ────────────────────────────────────────────────────
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -75,6 +77,7 @@ export function ExpensesTab({
   const [editExistingFileUrls, setEditExistingFileUrls] = useState<string[]>([]);
   const [editNewFiles, setEditNewFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [editUploadPct, setEditUploadPct] = useState(0);
 
   // ── Attachments viewer ─────────────────────────────────────────────
   const [expensePreviewUrl, setExpensePreviewUrl] = useState<string | null>(null);
@@ -132,20 +135,16 @@ export function ExpensesTab({
     e.preventDefault();
     if (!expenseForm.amount) return;
     setIsExpenseSubmitting(true);
+    setExpenseUploadPct(0);
     try {
       const locName = location?.name || "general";
       const imageUrls: string[] = [];
       const fileUrls: string[] = [];
       for (const file of expenseFiles.filter((f): f is File => f !== null)) {
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("locationName", locName);
         try {
-          const r = await axiosInstance.post("/upload", fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          if (r.data.resourceType === "image") imageUrls.push(r.data.url);
-          else fileUrls.push(r.data.url);
+          const r = await directUpload(file, locName, undefined, (p) => setExpenseUploadPct(p.percent));
+          if (r.resourceType === "image") imageUrls.push(r.url);
+          else fileUrls.push(r.url);
         } catch { /* continue */ }
       }
       await axiosInstance.post(`/locations/${branchId}/expenses`, {
@@ -169,6 +168,7 @@ export function ExpensesTab({
       });
     } finally {
       setIsExpenseSubmitting(false);
+      setExpenseUploadPct(0);
     }
   };
 
@@ -190,20 +190,16 @@ export function ExpensesTab({
     e.preventDefault();
     if (!editingExpense || !editForm.amount) return;
     setIsEditSubmitting(true);
+    setEditUploadPct(0);
     try {
       const locName = location?.name || "general";
       const newImageUrls: string[] = [];
       const newFileUrls: string[] = [];
       for (const file of editNewFiles.filter((f): f is File => f !== null)) {
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("locationName", locName);
         try {
-          const r = await axiosInstance.post("/upload", fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          if (r.data.resourceType === "image") newImageUrls.push(r.data.url);
-          else newFileUrls.push(r.data.url);
+          const r = await directUpload(file, locName, undefined, (p) => setEditUploadPct(p.percent));
+          if (r.resourceType === "image") newImageUrls.push(r.url);
+          else newFileUrls.push(r.url);
         } catch { /* continue */ }
       }
 
@@ -232,6 +228,7 @@ export function ExpensesTab({
       });
     } finally {
       setIsEditSubmitting(false);
+      setEditUploadPct(0);
     }
   };
 
@@ -488,7 +485,7 @@ export function ExpensesTab({
               />
             </div>
             <Button type="submit" className="w-full" disabled={isExpenseSubmitting}>
-              {isExpenseSubmitting ? t("submitting") : t("addExpense")}
+              {isExpenseSubmitting ? (expenseUploadPct > 0 ? `${expenseUploadPct}%` : t("submitting")) : t("addExpense")}
             </Button>
           </form>
         </DialogContent>
@@ -617,7 +614,7 @@ export function ExpensesTab({
                 {t("cancel")}
               </Button>
               <Button type="submit" disabled={isEditSubmitting}>
-                {isEditSubmitting ? t("submitting") : t("save")}
+                {isEditSubmitting ? (editUploadPct > 0 ? `${editUploadPct}%` : t("submitting")) : t("save")}
               </Button>
             </DialogFooter>
           </form>

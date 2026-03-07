@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import axiosInstance from "@/utils/axiosInstance";
+import { directUpload } from "@/utils/directUpload";
 import { formatWithDots, parseDots } from "@/utils/formatNumber";
 import { AttachmentSlots } from "@/components/ui/attachment-slots";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ export function ImportStockDialog({
   const [importNotes, setImportNotes] = useState("");
   const [importFiles, setImportFiles] = useState<(File | null)[]>(Array(10).fill(null));
   const [isImportSubmitting, setIsImportSubmitting] = useState(false);
+  const [importUploadPct, setImportUploadPct] = useState(0);
   const [importPickerOpen, setImportPickerOpen] = useState(false);
   const [importPickerItemUid, setImportPickerItemUid] = useState("");
   const [importProductSearch, setImportProductSearch] = useState("");
@@ -187,20 +189,16 @@ export function ImportStockDialog({
       return;
     }
     setIsImportSubmitting(true);
+    setImportUploadPct(0);
     try {
       const locName = location?.name || "general";
       const imageUrls: string[] = [];
       const fileUrls: string[] = [];
       for (const file of importFiles.filter((f): f is File => f !== null)) {
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("locationName", locName);
         try {
-          const r = await axiosInstance.post("/upload", fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          if (r.data.resourceType === "image") imageUrls.push(r.data.url);
-          else fileUrls.push(r.data.url);
+          const r = await directUpload(file, locName, undefined, (p) => setImportUploadPct(p.percent));
+          if (r.resourceType === "image") imageUrls.push(r.url);
+          else fileUrls.push(r.url);
         } catch { /* continue */ }
       }
       await Promise.all(
@@ -237,6 +235,7 @@ export function ImportStockDialog({
       });
     } finally {
       setIsImportSubmitting(false);
+      setImportUploadPct(0);
     }
   };
 
@@ -431,7 +430,7 @@ export function ImportStockDialog({
             </div>
 
             <Button type="submit" className="w-full" disabled={isImportSubmitting}>
-              {isImportSubmitting ? t("submitting") : t("confirmImport")}
+              {isImportSubmitting ? (importUploadPct > 0 ? `${importUploadPct}%` : t("submitting")) : t("confirmImport")}
             </Button>
           </form>
         </DialogContent>
